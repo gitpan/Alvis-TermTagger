@@ -1,0 +1,11 @@
+Changes
+Makefile.PL
+MANIFEST
+README
+TODO
+bin/TermTagger.pl
+lib/Alvis/TermTagger.pm
+etc/termlist-test.lst
+etc/corpus-test.txt
+t/0-creation.t
+t/1-termtagging.t
