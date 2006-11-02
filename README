@@ -2,7 +2,7 @@ Alvis-TermTagger version 0.1
 ================================
 
 This is a module to tag terms in a corpus. Corpus is one sentence per
-line. Characters, both from corpus a term list, are UTF-8 encoded.
+line. Characters, both from corpus and term list, are UTF-8 encoded.
 
 Contains this :
 

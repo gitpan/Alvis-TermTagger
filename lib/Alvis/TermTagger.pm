@@ -1,6 +1,6 @@
 package Alvis::TermTagger;
 
-our $VERSION = '0.1';
+our $VERSION = '0.2';
 
 #######################################################################
 #
@@ -30,10 +30,10 @@ Alvis::TermTagger::termtagging($termlist, $outputfile);
 
 This module is used to tag a corpus with terms. Corpus (given on the
 STDIN) is a file with one sentence per line. Term list (C<$termlist>)
-is a file containing one term per line. For each term, additional
-information can be given after a column. Each line of the output file
-(C<$outputfile>) contains the sentence number and the term separated
-by a tabulation character.
+is a file containing one term per line. For each term, additionnal
+information (as canonical form) can be given after a column. Each line
+of the output file (C<$outputfile>) contains the sentence number, the
+term, additional information, all separated by a tabulation character.
 
 This module is mainly used in the Alvis NLP Platform.
 
@@ -53,8 +53,9 @@ use strict;
 
 This is the main method of module. It loads the term list
 (C<$term_list_filename>) and tags the corpus (C<$corpus_filename>). It
-produces the list of matching terms and the sentence offset where the
-terms can be found. The file C<$output_filename> contains this output.
+produces the list of matching terms and the sentence offset (and
+additional information given in the input file) where the terms can be
+found. The file C<$output_filename> contains this output.
 
 =cut
 
@@ -83,8 +84,10 @@ sub termtagging {
 
     load_TermList($term_list_filename,\@term_list);
 
-This method loads the term list (C<$term_list_filename> is the file name) in the
-array given by reference (C<\@term_list>).
+This method loads the term list (C<$term_list_filename> is the file
+name) in the array given by reference (C<\@term_list>). Each element
+of term list contains a reference to a two element array (the term and
+its canonical form).
 
 =cut
 
@@ -115,7 +118,8 @@ sub load_TermList {
 		 $tab[0] =~ s/ +/ /g;
 		 $tab[0] =~ s/ $//g;
 		 $tab[0] =~ s/^ //g;
-		 push @$ref_termlist, $tab[0];
+                 my @tmptab = ($tab[0], $tab[1]);
+		 push @$ref_termlist, \@tmptab;
 	     }
  	 }
     }
@@ -142,7 +146,7 @@ sub get_Regex_TermList {
     warn "Generating the regular expression from the terms\n";
 
     for($term_counter  = 0;$term_counter < scalar @$ref_termlist;$term_counter++) {
-	$ref_regex_termlist->[$term_counter] = $ref_termlist->[$term_counter];
+	$ref_regex_termlist->[$term_counter] = $ref_termlist->[$term_counter]->[0];
 	$ref_regex_termlist->[$term_counter] =~ s/([()\',\[\]\?\!:;\/.\+\-])/ \\$1 /g;
     }
     print STDERR "\n\tTerm/regex list size : " . scalar(@$ref_regex_termlist) . "\n\n";
@@ -203,7 +207,7 @@ sub corpus_Indexing {
     warn "Indexing the corpus\n";
 
     foreach $sent_id (keys %$ref_corpus_lc) {
-	@tab_words = split /[ -]/, $ref_corpus_lc->{$sent_id};
+	@tab_words = split /[ -.,]/, $ref_corpus_lc->{$sent_id};
 	foreach $word (@tab_words) {
 	    if (!exists $ref_corpus_index->{$word}) {
 		my @tabtmp;
@@ -242,8 +246,13 @@ sub term_Selection {
     my %tabh_numtrm_select;
     
     for($counter  = 0;$counter < scalar @$ref_termlist;$counter++) {
-	$term = lc $ref_termlist->[$counter];
+	$term = lc $ref_termlist->[$counter]->[0];
+#         warn "Scanning term : $term\n";
 	@tab_termlex = split /[ -]+/, $term;
+#         warn "Split term : \n";
+#         foreach $word (@tab_termlex) {
+# 	    warn "\t$word\n";
+# 	}
 	$i=0; 
 	do {
 	    $word = $tab_termlex[$i];
@@ -262,7 +271,11 @@ sub term_Selection {
 
     warn "\nEnd of selecting the terms potentialy appearing in the corpus\n";
 
-    print STDERR "\n\tSize of the selected term list: " . scalar(keys %$ref_tabh_idtrm_select) . "\n\n";
+#     print STDERR "\n\tSize of the selected term list: " . scalar(keys %$ref_tabh_idtrm_select) . "\n\n";
+#     foreach my $counter (keys %$ref_tabh_idtrm_select) {
+#         my $term_regex = $ref_termlist->[$counter];
+# 	print STDERR $term_regex . "\n";
+#     }
 
 }
 
@@ -274,7 +287,7 @@ This method tags the corpus C<\%corpus> with the terms (issued from
 the term list C<\@term_list>, C<\@regex_term_list> is the term list
 with regular expression), and selected in a previous step
 (C<\%idtrm_select>). Resulting selected terms are recorded with their
-offset in the file C<$output_filename>.
+offset, and additional information in the file C<$output_filename>.
 
 =cut
 
@@ -282,7 +295,6 @@ sub term_tagging_offset {
     my ($ref_termlist, $ref_regex_termlist, $ref_tabh_idtrm_select, $ref_tabh_corpus, $offset_tagged_corpus_name) = @_;
     my $counter;
     my $term_regex;
-    my $idTrm;
     my $sent_id;
     my $line;
 
@@ -294,25 +306,27 @@ sub term_tagging_offset {
 
     foreach $counter (keys %$ref_tabh_idtrm_select) {
 	$term_regex = $ref_regex_termlist->[$counter];
-	$idTrm = $counter;
+#         warn "Scanning term : " . $ref_termlist->[$counter]->[0] . "\n";
+#         warn "\t Regex is : "  . $ref_regex_termlist->[$counter] . "\n";
 	foreach $sent_id (keys %{$ref_tabh_idtrm_select->{$counter}}){
 	    $line = $ref_tabh_corpus->{$sent_id};
+#             warn "\t <IN> $line\n";
 	    print STDERR ".";
 	    
-	    if ($line =~ / ($term_regex)[ ,]/i) {
-		print TAGGEDCORPUS "$sent_id\t";
-		print TAGGEDCORPUS $ref_termlist->[$counter];
-		print TAGGEDCORPUS "\n";
+	    if ($line =~ / ($term_regex)[,.?!:; ]/i) {
+		printMatchingTerm(\*TAGGEDCORPUS, $ref_termlist->[$counter], $sent_id);
 	    }
-	    if ($line =~ /^($term_regex) /i) {
-		print TAGGEDCORPUS "$sent_id\t";
-		print TAGGEDCORPUS $ref_termlist->[$counter];
-		print TAGGEDCORPUS "\n";
+# 	    if ($line =~ / ($term_regex) /i) {
+# 		printMatchingTerm(\*TAGGEDCORPUS, $ref_termlist->[$counter], $sent_id);
+# 	    }
+# 	    if ($line =~ /^($term_regex) /i) {
+# 		printMatchingTerm(\*TAGGEDCORPUS, $ref_termlist->[$counter], $sent_id);
+# 	    }
+	    if ($line =~ /^($term_regex)[,.?!:; ]/i) {
+		printMatchingTerm(\*TAGGEDCORPUS, $ref_termlist->[$counter], $sent_id);
 	    }
-	    if ($line =~ / ($term_regex)\.?$/i) {
-		print TAGGEDCORPUS "$sent_id\t";
-		print TAGGEDCORPUS $ref_termlist->[$counter];
-		print TAGGEDCORPUS "\n";
+	    if ($line =~ / ($term_regex)$/i) {
+		printMatchingTerm(\*TAGGEDCORPUS, $ref_termlist->[$counter], $sent_id);
 	    }
 	}
 	print STDERR "\n";
@@ -325,7 +339,18 @@ close TAGGEDCORPUS;
 
 }
 
+sub printMatchingTerm() {
 
+    my ($descriptor, $ref_matching_term, $sent_id) = @_;
+
+    print $descriptor "$sent_id\t";
+    print $descriptor $ref_matching_term->[0];
+    if (defined ($ref_matching_term->[1])) {
+	print $descriptor "\t" . $ref_matching_term->[1];
+    }
+    print $descriptor "\n";
+
+}
 
 =head1 SEE ALSO
 

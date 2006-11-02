@@ -18,9 +18,17 @@
 
 TermTagger.pl -- A Perl script for tagging corpus with terms
 
-=head2 SYNOPSIS
+=head1 SYNOPSIS
 
-B<TermTagger.pl> corpus termlist selected_term_list
+TermTagger.pl [options] corpus termlist selected_term_list
+
+=head1 OPTIONS
+
+=over 4
+
+=item    B<--help>            brief help message
+
+=back
 
 =head1 DESCRIPTION
 
@@ -28,9 +36,9 @@ B<TermTagger.pl> corpus termlist selected_term_list
 This script tags a corpus with terms. Corpus (C<corpus>) is a file
 with one sentence per line. Term list (C<termlist>) is a file
 containing one term per line. For each term, additionnal information
-can be given after a column. Each line of the output file
-(C<selected_term_list>) contains the sentence number and the term
-separated by a tabulation character.
+(as canonical form) can be given after a column. Each line of the
+output file (C<selected_term_list>) contains the sentence number, the
+term, additional information, all separated by a tabulation character.
 
 This script is mainly used in the Alvis NLP Platform.
 
@@ -54,6 +62,19 @@ at your option, any later version of Perl 5 you may have available.
 
 use strict;
 use Alvis::TermTagger;
+
+use Getopt::Long;
+use Pod::Usage;
+
+# Process Option
+
+my $man = 0;
+my $help = 0;
+
+GetOptions('help|?' => \$help) or pod2usage(2);
+pod2usage(1) if $help;
+# pod2usage(-exitstatus => 0, -verbose => 2) if $man; 
+# , man => \$man
 
 Alvis::TermTagger::termtagging($ARGV[0], $ARGV[1], $ARGV[2]);
 
