@@ -1,5 +1,9 @@
 Revision history for Perl extension Alvis::TermTagger.
 
+0.3     - addition of a new function to record tagged term in a array
+          or a hashtable
+
+
 0.2
         - correcting some regex for matching in the corpus and
 	  spliting in the terminological resource

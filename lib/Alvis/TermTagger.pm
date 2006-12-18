@@ -1,6 +1,6 @@
 package Alvis::TermTagger;
 
-our $VERSION = '0.2';
+our $VERSION = '0.3';
 
 #######################################################################
 #
@@ -256,7 +256,7 @@ sub term_Selection {
 	$i=0; 
 	do {
 	    $word = $tab_termlex[$i];
-	    if (($word ne "") && (exists $ref_corpus_index->{$word})) {
+	    if (($word ne "") && ((length($word) > 3) || (scalar(@tab_termlex)==1)) && (exists $ref_corpus_index->{$word})) {
 		if (!exists $ref_tabh_idtrm_select->{$counter}) {
 		    my %tabhtmp2;
 		    $ref_tabh_idtrm_select->{$counter} = \%tabhtmp2;
@@ -306,22 +306,13 @@ sub term_tagging_offset {
 
     foreach $counter (keys %$ref_tabh_idtrm_select) {
 	$term_regex = $ref_regex_termlist->[$counter];
-#         warn "Scanning term : " . $ref_termlist->[$counter]->[0] . "\n";
-#         warn "\t Regex is : "  . $ref_regex_termlist->[$counter] . "\n";
 	foreach $sent_id (keys %{$ref_tabh_idtrm_select->{$counter}}){
 	    $line = $ref_tabh_corpus->{$sent_id};
-#             warn "\t <IN> $line\n";
 	    print STDERR ".";
 	    
 	    if ($line =~ / ($term_regex)[,.?!:; ]/i) {
 		printMatchingTerm(\*TAGGEDCORPUS, $ref_termlist->[$counter], $sent_id);
 	    }
-# 	    if ($line =~ / ($term_regex) /i) {
-# 		printMatchingTerm(\*TAGGEDCORPUS, $ref_termlist->[$counter], $sent_id);
-# 	    }
-# 	    if ($line =~ /^($term_regex) /i) {
-# 		printMatchingTerm(\*TAGGEDCORPUS, $ref_termlist->[$counter], $sent_id);
-# 	    }
 	    if ($line =~ /^($term_regex)[,.?!:; ]/i) {
 		printMatchingTerm(\*TAGGEDCORPUS, $ref_termlist->[$counter], $sent_id);
 	    }
@@ -351,6 +342,92 @@ sub printMatchingTerm() {
     print $descriptor "\n";
 
 }
+
+=head2 term_tagging_offset_tab()
+
+    term_tagging_offset(\@term_list, \@regex_term_list, \%idtrm_select, \%corpus, \@tab_results);
+
+or 
+
+    term_tagging_offset(\@term_list, \@regex_term_list, \%idtrm_select, \%corpus, \%tabh_results);
+
+This method tags the corpus C<\%corpus> with the terms (issued from
+the term list C<\@term_list>, C<\@regex_term_list> is the term list
+with regular expression), and selected in a previous step
+(C<\%idtrm_select>). Resulting selected terms are recorded with their
+offset, and additional information in the array C<@tab_results>
+(values are sentence id, selected terms and additional information
+separated by tabulation) or in the hashtable C<%tabh_results> (keys
+form is "sentenceid_selectedterm", values are an array reference
+containing sentence id, selected terms and additional ifnormation).
+
+=cut
+
+sub term_tagging_offset_tab {
+    my ($ref_termlist, $ref_regex_termlist, $ref_tabh_idtrm_select, $ref_tabh_corpus, $ref_tab_results) = @_;
+    my $counter;
+    my $term_regex;
+    my $sent_id;
+    my $line;
+
+    warn "Term tagging\n";
+
+    foreach $counter (keys %$ref_tabh_idtrm_select) {
+	$term_regex = $ref_regex_termlist->[$counter];
+	foreach $sent_id (keys %{$ref_tabh_idtrm_select->{$counter}}){
+	    $line = $ref_tabh_corpus->{$sent_id};
+#	    print STDERR ".";
+	    
+	    if ($line =~ / ($term_regex)[,.?!:; ]/i) {
+		printMatchingTerm_tab($ref_termlist->[$counter], $sent_id, $ref_tab_results);
+	    }
+	    if ($line =~ /^($term_regex)[,.?!:; ]/i) {
+		printMatchingTerm_tab($ref_termlist->[$counter], $sent_id, $ref_tab_results);
+	    }
+	    if ($line =~ / ($term_regex)$/i) {
+		printMatchingTerm_tab($ref_termlist->[$counter], $sent_id, $ref_tab_results);
+	    }
+	}
+#	print STDERR "\n";
+    }
+
+#########################################################################################################
+    warn "\nEnd of term tagging\n";
+
+}
+
+sub printMatchingTerm_tab() {
+
+    my ($ref_matching_term, $sent_id, $ref_tab_results) = @_;
+
+    my $tmp_line = "";
+    my $tmp_key;
+
+    if (ref($ref_tab_results) eq "ARRAY") {
+	$tmp_line .= "$sent_id\t";
+	$tmp_line .= $ref_matching_term->[0];
+	if (defined ($ref_matching_term->[1])) {
+	    $tmp_line .= "\t" . $ref_matching_term->[1];
+	}
+	push @$ref_tab_results, $tmp_line;
+    } else {
+	if (ref($ref_tab_results) eq "HASH") {
+	    my @tab_tmp;
+	    $tmp_key .= $sent_id . "_";
+	    $tmp_key .= $ref_matching_term->[0];
+	    push @tab_tmp, $sent_id;
+	    push @tab_tmp, $ref_matching_term->[0];
+	    if (defined ($ref_matching_term->[1])) {
+		push @tab_tmp, $ref_matching_term->[1];
+	    }
+
+	    $ref_tab_results->{$tmp_key} = \@tab_tmp;
+	}
+    }
+
+}
+
+
 
 =head1 SEE ALSO
 
