@@ -40,8 +40,6 @@ containing one term per line. For each term, additionnal information
 output file (C<selected_term_list>) contains the sentence number, the
 term, additional information, all separated by a tabulation character.
 
-This script is mainly used in the Alvis NLP Platform.
-
 =head1 SEE ALSO
 
 Alvis web site: http://www.alvis.info

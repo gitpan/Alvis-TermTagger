@@ -1,6 +1,6 @@
 package Alvis::TermTagger;
 
-our $VERSION = '0.3';
+our $VERSION = '0.4';
 
 #######################################################################
 #
@@ -16,48 +16,12 @@ our $VERSION = '0.3';
 #
 ########################################################################
 
-=head1 NAME
-
-Alvis::TermTagger - Perl extension for tagging terms in a corpus
-
-=head1 SYNOPSIS
-
-use Alvis::TermTagger;
-
-Alvis::TermTagger::termtagging($termlist, $outputfile);
-
-=head1 DESCRIPTION
-
-This module is used to tag a corpus with terms. Corpus (given on the
-STDIN) is a file with one sentence per line. Term list (C<$termlist>)
-is a file containing one term per line. For each term, additionnal
-information (as canonical form) can be given after a column. Each line
-of the output file (C<$outputfile>) contains the sentence number, the
-term, additional information, all separated by a tabulation character.
-
-This module is mainly used in the Alvis NLP Platform.
-
-=head1 METHODS
-
-=cut
 
 use strict;
 
 # TODO : write functions for term tagginga, term selection with and
 # without offset in the corpus
 
-
-=head2 termtagging()
-
-    termtagging($term_list_filename, $output_filename);
-
-This is the main method of module. It loads the term list
-(C<$term_list_filename>) and tags the corpus (C<$corpus_filename>). It
-produces the list of matching terms and the sentence offset (and
-additional information given in the input file) where the terms can be
-found. The file C<$output_filename> contains this output.
-
-=cut
 
 sub termtagging {
 
@@ -80,16 +44,6 @@ sub termtagging {
     return(0);
 }
 
-=head2 load_TermList()
-
-    load_TermList($term_list_filename,\@term_list);
-
-This method loads the term list (C<$term_list_filename> is the file
-name) in the array given by reference (C<\@term_list>). Each element
-of term list contains a reference to a two element array (the term and
-its canonical form).
-
-=cut
 
 sub load_TermList {
     my ($termlist_name, $ref_termlist) = @_;
@@ -128,15 +82,6 @@ sub load_TermList {
 }
 
 
-=head2 get_Regex_TermList()
-
-    get_Regex_TermList(\@term_list, \@regex_term_list);
-
-This method generates the regular expression from the term list
-(C<\@term_list>). stored in the specific array
-(C<\@regex_term_list>)
-
-=cut
 
 sub get_Regex_TermList {
 
@@ -151,16 +96,6 @@ sub get_Regex_TermList {
     }
     print STDERR "\n\tTerm/regex list size : " . scalar(@$ref_regex_termlist) . "\n\n";
 }
-
-=head2 load_Corpus()
-
-    load_Corpus($corpus_filename\%corpus, \%lc_corpus);
-
-This method loads the corpus (C<$corpus_filename>) in hashtable
-(C<\%corpus>) and prepares the corpus in lower case (recorded in a
-specific hashtable, C<\%lc_corpus>)
-
-=cut
 
 sub load_Corpus {
 
@@ -185,16 +120,6 @@ sub load_Corpus {
     close CORPUS;
     print STDERR "\n\tCorpus size : " . scalar(keys %$ref_tabh_Corpus) . "\n\n";
 }
-
-=head2 corpus_Indexing()
-
-    corpus_Indexing(\%lc_corpus, \%corpus_index);
-
-This method indexes the lower case version of the corpus
-(C<\%lc_corpus>) according the words C<\%corpus_index> (the index is a
-hashtable given by reference).
-
-=cut
 
 
 sub corpus_Indexing {
@@ -221,16 +146,6 @@ sub corpus_Indexing {
 
 }
 
-=head2 term_Selection()
-
-    term_Selection(\%corpus_index, \@term_list, \%idtrm_select);
-
-This method selects the terms from the term list (C<\@term_list>)
-potentially appearing in the corpus (that is the indexed corpus,
-C<\%corpus_index>). Results are recorded in the hash table
-C<\%idtrm_select>.
-
-=cut
 
 sub term_Selection {
     my ($ref_corpus_index, $ref_termlist, $ref_tabh_idtrm_select) = @_;
@@ -279,17 +194,6 @@ sub term_Selection {
 
 }
 
-=head2 term_tagging_offset()
-
-    term_tagging_offset(\@term_list, \@regex_term_list, \%idtrm_select, \%corpus, $output_filename);
-
-This method tags the corpus C<\%corpus> with the terms (issued from
-the term list C<\@term_list>, C<\@regex_term_list> is the term list
-with regular expression), and selected in a previous step
-(C<\%idtrm_select>). Resulting selected terms are recorded with their
-offset, and additional information in the file C<$output_filename>.
-
-=cut
 
 sub term_tagging_offset {
     my ($ref_termlist, $ref_regex_termlist, $ref_tabh_idtrm_select, $ref_tabh_corpus, $offset_tagged_corpus_name) = @_;
@@ -343,25 +247,6 @@ sub printMatchingTerm() {
 
 }
 
-=head2 term_tagging_offset_tab()
-
-    term_tagging_offset(\@term_list, \@regex_term_list, \%idtrm_select, \%corpus, \@tab_results);
-
-or 
-
-    term_tagging_offset(\@term_list, \@regex_term_list, \%idtrm_select, \%corpus, \%tabh_results);
-
-This method tags the corpus C<\%corpus> with the terms (issued from
-the term list C<\@term_list>, C<\@regex_term_list> is the term list
-with regular expression), and selected in a previous step
-(C<\%idtrm_select>). Resulting selected terms are recorded with their
-offset, and additional information in the array C<@tab_results>
-(values are sentence id, selected terms and additional information
-separated by tabulation) or in the hashtable C<%tabh_results> (keys
-form is "sentenceid_selectedterm", values are an array reference
-containing sentence id, selected terms and additional ifnormation).
-
-=cut
 
 sub term_tagging_offset_tab {
     my ($ref_termlist, $ref_regex_termlist, $ref_tabh_idtrm_select, $ref_tabh_corpus, $ref_tab_results) = @_;
@@ -369,10 +254,16 @@ sub term_tagging_offset_tab {
     my $term_regex;
     my $sent_id;
     my $line;
+    my $i;
+    my $size_termselect = scalar(keys %$ref_tabh_idtrm_select);
 
-    warn "Term tagging\n";
+#     warn "Term tagging\n";
 
+    
+    $i = 0;
+    
     foreach $counter (keys %$ref_tabh_idtrm_select) {
+	printf STDERR "Term tagging... %0.1f%%\r", ($i/$size_termselect)*100 ;
 	$term_regex = $ref_regex_termlist->[$counter];
 	foreach $sent_id (keys %{$ref_tabh_idtrm_select->{$counter}}){
 	    $line = $ref_tabh_corpus->{$sent_id};
@@ -388,8 +279,9 @@ sub term_tagging_offset_tab {
 		printMatchingTerm_tab($ref_termlist->[$counter], $sent_id, $ref_tab_results);
 	    }
 	}
-#	print STDERR "\n";
+	$i++;
     }
+    print STDERR "\n";
 
 #########################################################################################################
     warn "\nEnd of term tagging\n";
@@ -429,6 +321,146 @@ sub printMatchingTerm_tab() {
 
 
 
+1;
+
+__END__
+
+=head1 NAME
+
+Alvis::TermTagger - Perl extension for tagging terms in a corpus
+
+=head1 SYNOPSIS
+
+use Alvis::TermTagger;
+
+Alvis::TermTagger::termtagging($termlist, $outputfile);
+
+=head1 DESCRIPTION
+
+This module is used to tag a corpus with terms. Corpus (given on the
+STDIN) is a file with one sentence per line. Term list (C<$termlist>)
+is a file containing one term per line. For each term, additionnal
+information (as canonical form) can be given after a column. Each line
+of the output file (C<$outputfile>) contains the sentence number, the
+term, additional information, all separated by a tabulation character.
+
+This module is mainly used in the Alvis NLP Platform.
+
+=head1 METHODS
+
+
+
+=head2 termtagging()
+
+    termtagging($term_list_filename, $output_filename);
+
+This is the main method of module. It loads the term list
+(C<$term_list_filename>) and tags the corpus (C<$corpus_filename>). It
+produces the list of matching terms and the sentence offset (and
+additional information given in the input file) where the terms can be
+found. The file C<$output_filename> contains this output.
+
+
+=head2 load_TermList()
+
+    load_TermList($term_list_filename,\@term_list);
+
+This method loads the term list (C<$term_list_filename> is the file
+name) in the array given by reference (C<\@term_list>). Each element
+of term list contains a reference to a two element array (the term and
+its canonical form).
+
+
+=head2 get_Regex_TermList()
+
+    get_Regex_TermList(\@term_list, \@regex_term_list);
+
+This method generates the regular expression from the term list
+(C<\@term_list>). stored in the specific array
+(C<\@regex_term_list>)
+
+
+=head2 load_Corpus()
+
+    load_Corpus($corpus_filename\%corpus, \%lc_corpus);
+
+This method loads the corpus (C<$corpus_filename>) in hashtable
+(C<\%corpus>) and prepares the corpus in lower case (recorded in a
+specific hashtable, C<\%lc_corpus>)
+
+
+
+=head2 corpus_Indexing()
+
+    corpus_Indexing(\%lc_corpus, \%corpus_index);
+
+This method indexes the lower case version of the corpus
+(C<\%lc_corpus>) according the words C<\%corpus_index> (the index is a
+hashtable given by reference).
+
+
+
+=head2 term_Selection()
+
+    term_Selection(\%corpus_index, \@term_list, \%idtrm_select);
+
+This method selects the terms from the term list (C<\@term_list>)
+potentially appearing in the corpus (that is the indexed corpus,
+C<\%corpus_index>). Results are recorded in the hash table
+C<\%idtrm_select>.
+
+
+=head2 term_tagging_offset()
+
+    term_tagging_offset(\@term_list, \@regex_term_list, \%idtrm_select, \%corpus, $output_filename);
+
+This method tags the corpus C<\%corpus> with the terms (issued from
+the term list C<\@term_list>, C<\@regex_term_list> is the term list
+with regular expression), and selected in a previous step
+(C<\%idtrm_select>). Resulting selected terms are recorded with their
+offset, and additional information in the file C<$output_filename>.
+
+
+=head2 term_tagging_offset_tab()
+
+    term_tagging_offset(\@term_list, \@regex_term_list, \%idtrm_select, \%corpus, \@tab_results);
+
+or 
+
+    term_tagging_offset(\@term_list, \@regex_term_list, \%idtrm_select, \%corpus, \%tabh_results);
+
+This method tags the corpus C<\%corpus> with the terms (issued from
+the term list C<\@term_list>, C<\@regex_term_list> is the term list
+with regular expression), and selected in a previous step
+(C<\%idtrm_select>). Resulting selected terms are recorded with their
+offset, and additional information in the array C<@tab_results>
+(values are sentence id, selected terms and additional information
+separated by tabulation) or in the hashtable C<%tabh_results> (keys
+form is "sentenceid_selectedterm", values are an array reference
+containing sentence id, selected terms and additional ifnormation).
+
+=head2 printMatchingTerm
+
+    printMatchingTerm($descriptor, $ref_matching_term, $sentence_id);
+
+This method prints into the file descriptor C<$descriptor>, the
+sentence id (C<$sentence_id>) and the matching term (named by its
+reference C<$ref_matching_term>). Both data are on a line and are
+separated by a tabulation character.
+
+=head2 printMatchingTerm_tab
+
+    printMatchingTerm_tab($ref_matching_term, $sentence_id, $ref_tab_results);
+
+This method stores into C<$ref_tab_results>, the sentence id
+(C<$sentence_id>) and the matching term (named by its reference
+C<$ref_matching_term>). C<$ref_tab_results> can be a array or a hash
+table. In case of an array, both data are concatanated in a line and
+are separated by a tabulation character. In case of a hash table, both
+data are stored in an array, hash key is the concatenation of the
+sentence id and the matching term.
+
+
 =head1 SEE ALSO
 
 Alvis web site: http://www.alvis.info
@@ -445,6 +477,4 @@ This library is free software; you can redistribute it and/or modify
 it under the same terms as Perl itself, either Perl version 5.8.6 or,
 at your option, any later version of Perl 5 you may have available.
 
-=cut
 
-1;

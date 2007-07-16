@@ -1,0 +1,32 @@
+#!/usr/bin/perl -w
+
+
+use strict;
+
+require Alvis::TermTagger;
+
+my $corpus = "corpus";
+my $termlist = "termlist";
+my @selected_term_list;
+my $term;
+
+my @term_list;
+my @regex_term_list;
+my %corpus;
+my %lc_corpus;
+my %corpus_index;
+my %idtrm_select;
+
+
+Alvis::TermTagger::load_TermList($termlist,\@term_list);
+Alvis::TermTagger::get_Regex_TermList(\@term_list, \@regex_term_list);
+Alvis::TermTagger::load_Corpus($corpus,\%corpus, \%lc_corpus);
+Alvis::TermTagger::corpus_Indexing(\%lc_corpus, \%corpus_index);
+Alvis::TermTagger::term_Selection(\%corpus_index, \@term_list, \%idtrm_select);
+Alvis::TermTagger::term_tagging_offset_tab(\@term_list, \@regex_term_list, \%idtrm_select, \%corpus, \@selected_term_list);
+
+foreach $term (@selected_term_list) {
+  print "$term\n";
+}
+
+

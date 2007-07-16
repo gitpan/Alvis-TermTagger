@@ -17,9 +17,19 @@ To install this module type the following:
    make test
    make install
 
+Or if you don't have the "make" program:
+
+   perl Build.PL
+   Build
+   Build test
+   Build install
+
 DEPENDENCIES
 
-This module do not require any  other modules and libraries:
+This module requires these other modules and libraries:
+
+ Getopt::Long
+ Pod::Usage
 
 FILE FORMAT AND CONFIGURATION
 

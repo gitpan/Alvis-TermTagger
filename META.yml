@@ -1,0 +1,15 @@
+--- #YAML:1.0
+name:                Alvis-TermTagger
+version:             0.4
+abstract:            Perl extension for tagging terms in a corpus
+license:             gpl
+generated_by:        ExtUtils::MakeMaker version 6.36
+distribution_type:   module
+requires:     
+    Getopt::Long:                  0
+    Pod::Usage:                    0
+meta-spec:
+    url:     http://module-build.sourceforge.net/META-spec-v1.2.html
+    version: 1.2
+author:
+    - Thierry Hamon <thierry.hamon@lipn.univ-paris13.fr>

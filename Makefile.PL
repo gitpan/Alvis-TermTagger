@@ -8,6 +8,8 @@ WriteMakefile(
     PREREQ_PM         => { Getopt::Long => 0,
                            Pod::Usage =>0
                          }, # e.g., Module::Name => 1.1
+    LICENSE           => "gpl",
+    INSTALLDIRS     => 'perl',
     ($] >= 5.005 ?     ## Add these new keywords supported since 5.005
       (ABSTRACT_FROM  => 'lib/Alvis/TermTagger.pm', # retrieve abstract from module
        AUTHOR         => 'Thierry Hamon <thierry.hamon@lipn.univ-paris13.fr>') : ()),

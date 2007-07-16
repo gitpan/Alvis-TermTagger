@@ -1,5 +1,11 @@
 Revision history for Perl extension Alvis::TermTagger.
 
+0.4     - Improvement in displaying the tagging process
+        - Documentation of the modules and scripts are gathered at the
+          end of each file.
+        - Addition of a Build.PL file        
+        - Addition of examples
+
 0.3     - addition of a new function to record tagged term in a array
           or a hashtable
 
