@@ -59,6 +59,8 @@ at your option, any later version of Perl 5 you may have available.
 =cut
 
 use strict;
+use warnings;
+
 use Alvis::TermTagger;
 
 use Getopt::Long;

@@ -1,0 +1,11 @@
+NLP tools : NLP tool : TOOL
+configurable platform : : TOOL
+word segmentation : : NLPPROCESS
+lemmatisation : lemmatization : NLPPROCESS
+named entity recognition : : NLPPROCESS
+POS tagging : POStag : NLPPROCESS
+term tagging : : NLPPROCESS
+parsing : : NLPPROCESS
+stand-off XML format : : DATA
+ALVIS project : : PROJET
+web document : : DATA

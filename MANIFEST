@@ -16,6 +16,8 @@ examples/corpus
 examples/load_and_term-matching
 examples/load_and_term-matching_tab
 examples/termlist
+examples/term+lemlist
+examples/term+lem+semtaglist
 examples/term-matching
-
-META.yml                                 Module meta-data (added by MakeMaker)
+LICENSE
+META.yml

@@ -8,6 +8,7 @@ my $build = Module::Build->new
      requires => {'perl' => '5.005',
 		  Getopt::Long => 0,
 		  Pod::Usage => 0,
+  		  Test::More => 0.62
 		  },
      installdirs => 'core',
      );

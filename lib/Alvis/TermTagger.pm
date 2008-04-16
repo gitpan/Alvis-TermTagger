@@ -1,6 +1,6 @@
 package Alvis::TermTagger;
 
-our $VERSION = '0.4';
+our $VERSION = '0.5';
 
 #######################################################################
 #
@@ -18,6 +18,7 @@ our $VERSION = '0.4';
 
 
 use strict;
+use warnings;
 
 # TODO : write functions for term tagginga, term selection with and
 # without offset in the corpus
@@ -67,13 +68,13 @@ sub load_TermList {
 	if (($line !~ /^\s*\#/)&&($line !~ /^\s*\/\//)&&($line !~ /^\s*$/)) {
 	    # Term is split from the other information
 	    # TODO : keep the additional information to restore them at the tagging
-	    @tab = split / ?[\|:] ?/, $line;
+	    my @tab = split / ?[\|:] ?/, $line;
 	     if ($tab[0] !~ /^\s$/) {
 		 $tab[0] =~ s/ +/ /g;
 		 $tab[0] =~ s/ $//g;
 		 $tab[0] =~ s/^ //g;
-                 my @tmptab = ($tab[0], $tab[1]);
-		 push @$ref_termlist, \@tmptab;
+#                 my @tmptab = ($tab[0], $tab[1]); # ###
+		 push @$ref_termlist, \@tab;
 	     }
  	 }
     }
@@ -143,9 +144,20 @@ sub corpus_Indexing {
     }
 
     print STDERR "\n\tSize of the first selected term list: " . scalar(keys %$ref_corpus_index) . "\n\n";
-
+#    &print_corpus_index($ref_corpus_index);
 }
 
+sub print_corpus_index {
+    my ($ref_corpus_index) = @_;
+
+    my $word;
+
+    foreach $word (sort keys %$ref_corpus_index) {
+	print STDERR "$word\t";
+	print STDERR join(", ", @{$ref_corpus_index->{$word}});
+	print STDERR "\n";
+    }
+}
 
 sub term_Selection {
     my ($ref_corpus_index, $ref_termlist, $ref_tabh_idtrm_select) = @_;
@@ -155,6 +167,7 @@ sub term_Selection {
     my $i;
     my $word;
     my $sent_id;
+    my $word_found = 0;
 
     warn "Selecting the terms potentialy appearing in the corpus\n";
 
@@ -162,8 +175,10 @@ sub term_Selection {
     
     for($counter  = 0;$counter < scalar @$ref_termlist;$counter++) {
 	$term = lc $ref_termlist->[$counter]->[0];
-#         warn "Scanning term : $term\n";
+#  	print STDERR "==>$term\n";
+#          warn "Scanning term : $term\n";
 	@tab_termlex = split /[ -]+/, $term;
+	$word_found = 0;
 #         warn "Split term : \n";
 #         foreach $word (@tab_termlex) {
 # 	    warn "\t$word\n";
@@ -171,17 +186,20 @@ sub term_Selection {
 	$i=0; 
 	do {
 	    $word = $tab_termlex[$i];
+# 	    warn "\t$word\n";
 	    if (($word ne "") && ((length($word) > 3) || (scalar(@tab_termlex)==1)) && (exists $ref_corpus_index->{$word})) {
+		$word_found = 1;
 		if (!exists $ref_tabh_idtrm_select->{$counter}) {
 		    my %tabhtmp2;
 		    $ref_tabh_idtrm_select->{$counter} = \%tabhtmp2;
 		}
 		foreach $sent_id (@{$ref_corpus_index->{$word}}) {
+# 		    print STDERR "$word => $sent_id\n";
 		    ${$ref_tabh_idtrm_select->{$counter}}{$sent_id} = 1;
 		}
 	    }
 	    $i++;
-	} while((!exists $ref_corpus_index->{$word}) && ($i < scalar @tab_termlex));
+	} while((!$word_found) && ($i < scalar @tab_termlex));
     }
 
     warn "\nEnd of selecting the terms potentialy appearing in the corpus\n";
@@ -214,10 +232,10 @@ sub term_tagging_offset {
 	    $line = $ref_tabh_corpus->{$sent_id};
 	    print STDERR ".";
 	    
-	    if ($line =~ / ($term_regex)[,.?!:; ]/i) {
+	    if ($line =~ / ($term_regex)[,.?!:;\/ ]/i) {
 		printMatchingTerm(\*TAGGEDCORPUS, $ref_termlist->[$counter], $sent_id);
 	    }
-	    if ($line =~ /^($term_regex)[,.?!:; ]/i) {
+	    if ($line =~ /^($term_regex)[,.?!:;\/ ]/i) {
 		printMatchingTerm(\*TAGGEDCORPUS, $ref_termlist->[$counter], $sent_id);
 	    }
 	    if ($line =~ / ($term_regex)$/i) {
@@ -239,10 +257,11 @@ sub printMatchingTerm() {
     my ($descriptor, $ref_matching_term, $sent_id) = @_;
 
     print $descriptor "$sent_id\t";
-    print $descriptor $ref_matching_term->[0];
-    if (defined ($ref_matching_term->[1])) {
-	print $descriptor "\t" . $ref_matching_term->[1];
-    }
+    print $descriptor join("\t", @$ref_matching_term);
+#     print $descriptor $ref_matching_term->[0];
+#     if (defined ($ref_matching_term->[1])) {
+# 	print $descriptor "\t" . $ref_matching_term->[1];
+#     }
     print $descriptor "\n";
 
 }
@@ -268,11 +287,14 @@ sub term_tagging_offset_tab {
 	foreach $sent_id (keys %{$ref_tabh_idtrm_select->{$counter}}){
 	    $line = $ref_tabh_corpus->{$sent_id};
 #	    print STDERR ".";
-	    
-	    if ($line =~ / ($term_regex)[,.?!:; ]/i) {
+
+# 	    print STDERR "$term_regex\n";
+# 	    print STDERR "$line\n";
+	    if ($line =~ / ($term_regex)[,.?!:;\/ ]/i) {
+# 		print STDERR "OK\n";
 		printMatchingTerm_tab($ref_termlist->[$counter], $sent_id, $ref_tab_results);
 	    }
-	    if ($line =~ /^($term_regex)[,.?!:; ]/i) {
+	    if ($line =~ /^($term_regex)[,.?!:;\/ ]/i) {
 		printMatchingTerm_tab($ref_termlist->[$counter], $sent_id, $ref_tab_results);
 	    }
 	    if ($line =~ / ($term_regex)$/i) {
@@ -295,12 +317,14 @@ sub printMatchingTerm_tab() {
     my $tmp_line = "";
     my $tmp_key;
 
+
     if (ref($ref_tab_results) eq "ARRAY") {
 	$tmp_line .= "$sent_id\t";
-	$tmp_line .= $ref_matching_term->[0];
-	if (defined ($ref_matching_term->[1])) {
-	    $tmp_line .= "\t" . $ref_matching_term->[1];
-	}
+ 	$tmp_line .= join ("\t", @$ref_matching_term);
+# 	$tmp_line .= $ref_matching_term->[0];
+# 	if (defined ($ref_matching_term->[1])) {
+# 	    $tmp_line .= "\t" . $ref_matching_term->[1];
+# 	}
 	push @$ref_tab_results, $tmp_line;
     } else {
 	if (ref($ref_tab_results) eq "HASH") {
@@ -308,11 +332,12 @@ sub printMatchingTerm_tab() {
 	    $tmp_key .= $sent_id . "_";
 	    $tmp_key .= $ref_matching_term->[0];
 	    push @tab_tmp, $sent_id;
-	    push @tab_tmp, $ref_matching_term->[0];
-	    if (defined ($ref_matching_term->[1])) {
-		push @tab_tmp, $ref_matching_term->[1];
-	    }
+	    push @tab_tmp, @$ref_matching_term;
+# 	    if (defined ($ref_matching_term->[1])) {
+# 		push @tab_tmp, $ref_matching_term->[1];
+# 	    }
 
+#  	print STDERR "\n$tmp_key\n\n";
 	    $ref_tab_results->{$tmp_key} = \@tab_tmp;
 	}
     }
@@ -340,9 +365,11 @@ Alvis::TermTagger::termtagging($termlist, $outputfile);
 This module is used to tag a corpus with terms. Corpus (given on the
 STDIN) is a file with one sentence per line. Term list (C<$termlist>)
 is a file containing one term per line. For each term, additionnal
-information (as canonical form) can be given after a column. Each line
-of the output file (C<$outputfile>) contains the sentence number, the
-term, additional information, all separated by a tabulation character.
+information (as canonical form or semantic tag) can be given after the
+first column. This information can be separated by either a column,
+either by a vertical bar. Each line of the output file
+(C<$outputfile>) contains the sentence number, the term, additional
+information, all separated by a tabulation character.
 
 This module is mainly used in the Alvis NLP Platform.
 
@@ -398,7 +425,11 @@ This method indexes the lower case version of the corpus
 (C<\%lc_corpus>) according the words C<\%corpus_index> (the index is a
 hashtable given by reference).
 
+=head2 print_corpus_index()
 
+    print_corpus_index(\%corpus_index);
+
+This method prints on STDERR the corpus index C<\%corpus_index>.
 
 =head2 term_Selection()
 

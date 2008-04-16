@@ -2,11 +2,12 @@
 
 
 use strict;
+use warnings;
 
 require Alvis::TermTagger;
 
 my $corpus = "corpus";
-my $termlist = "termlist";
+my $termlist = "term+lem+semtaglist";
 my @selected_term_list;
 my $term;
 
