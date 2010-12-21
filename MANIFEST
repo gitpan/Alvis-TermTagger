@@ -3,6 +3,7 @@ Makefile.PL
 Build.PL
 MANIFEST
 README
+AUTHORS
 TODO
 bin/TermTagger.pl
 lib/Alvis/TermTagger.pm
@@ -19,5 +20,8 @@ examples/termlist
 examples/term+lemlist
 examples/term+lem+semtaglist
 examples/term-matching
+examples/lemmatised-corpus
+examples/load_and_term-matching_hash
+examples/term+lem+semtaglist+wordlemma
 LICENSE
 META.yml

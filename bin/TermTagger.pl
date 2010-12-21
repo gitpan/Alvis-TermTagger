@@ -2,15 +2,15 @@
 
 #######################################################################
 #
-# Last Update: 01/09/2003 (mm/dd/yyyy date format)
+# Last Update: 21/12/2010 (mm/dd/yyyy date format)
 # 
 # Copyright (C) 2002 Thierry Hamon
 #
-# Written by thierry.hamon@lipn.univ-paris13.fr
+# Written by thierry.hamon@univ-paris13.fr
 #
 # Author : Thierry Hamon
-# Email : thierry.hamon@lipn.univ-paris13.fr
-# URL : http://www-lipn.univ-paris13.fr/~hamon
+# Email : thierry.hamon@univ-paris13.fr
+# URL : http://www-limbio.smbh.univ-paris13.fr/membres/hamon/
 #
 ########################################################################
 
@@ -32,7 +32,6 @@ TermTagger.pl [options] corpus termlist selected_term_list
 
 =head1 DESCRIPTION
 
-
 This script tags a corpus with terms. Corpus (C<corpus>) is a file
 with one sentence per line. Term list (C<termlist>) is a file
 containing one term per line. For each term, additionnal information
@@ -46,7 +45,7 @@ Alvis web site: http://www.alvis.info
 
 =head1 AUTHORS
 
-Thierry Hamon <thierry.hamon@lipn.univ-paris13.fr>
+Thierry Hamon <thierry.hamon@univ-paris13.fr>
 
 =head1 LICENSE
 
@@ -76,7 +75,7 @@ pod2usage(1) if $help;
 # pod2usage(-exitstatus => 0, -verbose => 2) if $man; 
 # , man => \$man
 
-Alvis::TermTagger::termtagging($ARGV[0], $ARGV[1], $ARGV[2]);
+Alvis::TermTagger::termtagging($ARGV[0], $ARGV[1], $ARGV[2], $ARGV[3]);
 
 
 

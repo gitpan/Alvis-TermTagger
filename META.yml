@@ -1,22 +1,26 @@
 ---
-name: Alvis-TermTagger
-version: 0.5
+abstract: 'Perl extension for tagging terms in a text'
 author:
-  - 'Thierry Hamon <thierry.hamon@lipn.univ-paris13.fr>'
-abstract: Perl extension for tagging terms in a corpus
+  - 'Thierry Hamon <thierry.hamon@univ-paris13.fr>'
+build_requires:
+  Module::Build: 0.28
+configure_requires:
+  Module::Build: 0.36
+generated_by: 'Module::Build version 0.3607'
 license: gpl
-resources:
-  license: http://www.opensource.org/licenses/gpl-license.php
+meta-spec:
+  url: http://module-build.sourceforge.net/META-spec-v1.4.html
+  version: 1.4
+name: Alvis-TermTagger
+provides:
+  Alvis::TermTagger:
+    file: lib/Alvis/TermTagger.pm
+    version: 0.7
 requires:
   Getopt::Long: 0
   Pod::Usage: 0
   Test::More: 0.62
   perl: 5.005
-provides:
-  Alvis::TermTagger:
-    file: lib/Alvis/TermTagger.pm
-    version: 0.5
-generated_by: Module::Build version 0.2808
-meta-spec:
-  url: http://module-build.sourceforge.net/META-spec-v1.2.html
-  version: 1.2
+resources:
+  license: http://opensource.org/licenses/gpl-license.php
+version: 0.7

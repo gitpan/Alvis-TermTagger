@@ -9,7 +9,7 @@ require Alvis::TermTagger;
 my $corpus = "corpus";
 my $lemmatised_corpus = "lemmatised-corpus";
 my $termlist = "term+lem+semtaglist+wordlemma";
-my @selected_term_list;
+my %selected_term_list;
 my $term;
 
 my @term_list;
@@ -32,13 +32,13 @@ Alvis::TermTagger::load_Corpus($lemmatised_corpus,\%lemmatised_corpus, \%lc_lemm
 Alvis::TermTagger::corpus_Indexing(\%lc_corpus, \%corpus_index);
 Alvis::TermTagger::corpus_Indexing(\%lc_lemmatised_corpus, \%lemmatised_corpus_index);
 Alvis::TermTagger::term_Selection(\%corpus_index, \@term_list, \%idtrm_select);
-Alvis::TermTagger::term_Selection(\%lemmatised_corpus_index, \@term_list, \%idtrm_select);
 Alvis::TermTagger::term_Selection(\%lemmatised_corpus_index, \@term_list, \%idlemtrm_select);
-Alvis::TermTagger::term_tagging_offset_tab(\@term_list, \@regex_term_list, \%idtrm_select, \%corpus, \@selected_term_list);
-Alvis::TermTagger::term_tagging_offset_tab(\@term_list, \@regex_lemmawordterm_list, \%idlemtrm_select, \%lemmatised_corpus, \@selected_term_list);
-
-foreach $term (@selected_term_list) {
-  print "$term\n";
+Alvis::TermTagger::term_tagging_offset_tab(\@term_list, \@regex_term_list, \%idtrm_select, \%corpus, \%selected_term_list);
+Alvis::TermTagger::term_tagging_offset_tab(\@term_list, \@regex_lemmawordterm_list, \%idlemtrm_select, \%lemmatised_corpus, \%selected_term_list);
+ 
+foreach $term (keys %selected_term_list) {
+#   print "$term\t" .  join("\t", @{$selected_term_list{$term}}) . "\n";
+  print join("\t", @{$selected_term_list{$term}}) . "\n";
 }
 
 

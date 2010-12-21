@@ -1,18 +1,18 @@
 package Alvis::TermTagger;
 
-our $VERSION = '0.5';
+our $VERSION = '0.7';
 
 #######################################################################
 #
-# Last Update: 24/07/2006 (mm/dd/yyyy date format)
+# Last Update: 21/12/2010 (mm/dd/yyyy date format)
 # 
 # Copyright (C) 2006 Thierry Hamon
 #
-# Written by thierry.hamon@lipn.univ-paris13.fr
+# Written by thierry.hamon@univ-paris13.fr
 #
 # Author : Thierry Hamon
-# Email : thierry.hamon@lipn.univ-paris13.fr
-# URL : http://www-lipn.univ-paris13.fr/~hamon
+# Email : thierry.hamon@univ-paris13.fr
+# URL : http://www-limbio.smbh.univ-paris13.fr/membres/hamon/
 #
 ########################################################################
 
@@ -23,25 +23,41 @@ use warnings;
 # TODO : write functions for term tagginga, term selection with and
 # without offset in the corpus
 
-
 sub termtagging {
 
-    my ($corpus_filename, $term_list_filename, $output_filename) = @_;
+    my ($corpus_filename, $term_list_filename, $output_filename, $lemmatised_corpus_filename) = @_;
 
     my @term_list;
     my @regex_term_list;
+    my @regex_lemmawordterm_list;
     my %corpus;
     my %lc_corpus;
+    my %lemmatised_corpus;
+    my %lc_lemmatised_corpus;
     my %corpus_index;
+    my %lemmatised_corpus_index;
     my %idtrm_select;
+    my %idlemtrm_select;
 
     &load_TermList($term_list_filename,\@term_list);
-    &get_Regex_TermList(\@term_list, \@regex_term_list);
-    &load_Corpus($corpus_filename,\%corpus, \%lc_corpus);
-    &corpus_Indexing(\%lc_corpus, \%corpus_index);
-    &term_Selection(\%corpus_index, \@term_list, \%idtrm_select);
-    &term_tagging_offset(\@term_list, \@regex_term_list, \%idtrm_select, \%corpus, $output_filename);
+    &get_Regex_TermList(\@term_list, \@regex_term_list, \@regex_lemmawordterm_list);
 
+    &load_Corpus($corpus_filename,\%corpus, \%lc_corpus);
+    if (defined $lemmatised_corpus_filename) {
+	&load_Corpus($lemmatised_corpus_filename,\%lemmatised_corpus, \%lc_lemmatised_corpus);
+    }
+    &corpus_Indexing(\%lc_corpus, \%corpus_index);
+    if (defined $lemmatised_corpus_filename) {
+	&corpus_Indexing(\%lc_lemmatised_corpus, \%lemmatised_corpus_index);
+    }
+    &term_Selection(\%corpus_index, \@term_list, \%idtrm_select);
+    if (defined $lemmatised_corpus_filename) {
+	&term_Selection(\%lemmatised_corpus_index, \@term_list, \%idlemtrm_select);
+    }
+    &term_tagging_offset(\@term_list, \@regex_term_list, \%idtrm_select, \%corpus, $output_filename);
+    if (defined $lemmatised_corpus_filename) {
+	&term_tagging_offset(\@term_list, \@regex_lemmawordterm_list, \%idlemtrm_select, \%lemmatised_corpus, $output_filename);
+    }
     return(0);
 }
 
@@ -50,6 +66,7 @@ sub load_TermList {
     my ($termlist_name, $ref_termlist) = @_;
 
     my $line;
+    my $line1;
     my $term;        # not use yet 
     my $suppl_info;  # not use yet 
     my @tab;
@@ -60,20 +77,20 @@ sub load_TermList {
 
     binmode(DESC_TERMLIST, ":utf8");
 
-    while($line = <DESC_TERMLIST>) {
-	chomp $line;
-	utf8::decode($line);
-	
+    while($line1 = <DESC_TERMLIST>) {
+	chomp $line1;
+	utf8::decode($line1);
+	$line=$line1;
+
 	# Blank and comment lines are throw away
-	if (($line !~ /^\s*\#/)&&($line !~ /^\s*\/\//)&&($line !~ /^\s*$/)) {
+	if (($line !~ /^\s*\#/o)&&($line !~ /^\s*\/\//o)&&($line !~ /^\s*$/o)) {
 	    # Term is split from the other information
-	    # TODO : keep the additional information to restore them at the tagging
 	    my @tab = split / ?[\|:] ?/, $line;
-	     if ($tab[0] !~ /^\s$/) {
-		 $tab[0] =~ s/ +/ /g;
-		 $tab[0] =~ s/ $//g;
-		 $tab[0] =~ s/^ //g;
-#                 my @tmptab = ($tab[0], $tab[1]); # ###
+	     if ($tab[0] !~ /^\s*$/) {
+		 # TODO better
+		 $tab[0] =~ s/ +/ /go;
+		 $tab[0] =~ s/ $//go;
+		 $tab[0] =~ s/^ //go;
 		 push @$ref_termlist, \@tab;
 	     }
  	 }
@@ -82,20 +99,30 @@ sub load_TermList {
     print STDERR "\n\tTerm list size : " . scalar(@$ref_termlist) . "\n\n";
 }
 
-
-
 sub get_Regex_TermList {
 
-    my ($ref_termlist, $ref_regex_termlist) = @_;
+    my ($ref_termlist, $ref_regex_termlist, $ref_regex_lemmaWordtermlist) = @_;
     my $term_counter;
 
     warn "Generating the regular expression from the terms\n";
 
     for($term_counter  = 0;$term_counter < scalar @$ref_termlist;$term_counter++) {
 	$ref_regex_termlist->[$term_counter] = $ref_termlist->[$term_counter]->[0];
-	$ref_regex_termlist->[$term_counter] =~ s/([()\',\[\]\?\!:;\/.\+\-])/ \\$1 /g;
+	if (defined $ref_regex_lemmaWordtermlist) {
+	    $ref_regex_lemmaWordtermlist->[$term_counter] = $ref_termlist->[$term_counter]->[3];
+	}
+ 	$ref_regex_termlist->[$term_counter] =~ s/([()\',\[\]\?\!:;\/.\+\-\*\#\{\}])/\\$1/og;
+	$ref_regex_termlist->[$term_counter] =~ s/ /[\- \n]/og;
+	if (defined $ref_regex_lemmaWordtermlist) {
+	    $ref_regex_lemmaWordtermlist->[$term_counter] =~ s/([()\',\[\]\?\!:;\/.\+\-\*\#\{\}])/\\$1/og;
+	    $ref_regex_lemmaWordtermlist->[$term_counter] =~ s/ /[\- \n]/og;
+	}
     }
-    print STDERR "\n\tTerm/regex list size : " . scalar(@$ref_regex_termlist) . "\n\n";
+    print STDERR "\n\tTerm/regex list size : " . scalar(@$ref_regex_termlist);
+    if (defined $ref_regex_lemmaWordtermlist) {
+	print STDERR" / " . scalar(@$ref_regex_lemmaWordtermlist);
+    }
+    print STDERR "\n\n";
 }
 
 sub load_Corpus {
@@ -105,8 +132,6 @@ sub load_Corpus {
     my $sent_id = 1;
 
     warn "Loading the corpus\n";
-
-    # TODO read the corpus from a file
 
     open CORPUS, $corpus_filename or die "File $corpus_filename not found\n";
  
@@ -132,19 +157,19 @@ sub corpus_Indexing {
 
     warn "Indexing the corpus\n";
 
-    foreach $sent_id (keys %$ref_corpus_lc) {
-	@tab_words = split /[ -.,]/, $ref_corpus_lc->{$sent_id};
+    foreach $sent_id (keys %$ref_corpus_lc) { # \-\.,\n;\/
+	@tab_words = split /[ ()\',\[\]\?\!:;\/\.\+\-\*\#\{\}\n]/, $ref_corpus_lc->{$sent_id};
 	foreach $word (@tab_words) {
-	    if (!exists $ref_corpus_index->{$word}) {
-		my @tabtmp;
-		$ref_corpus_index->{$word} = \@tabtmp;
+	    if ($word ne "") {
+		if (!exists $ref_corpus_index->{$word}) {
+		    my @tabtmp;
+		    $ref_corpus_index->{$word} = \@tabtmp;
+		}
+		push @{$ref_corpus_index->{$word}}, $sent_id;
 	    }
-	    push @{$ref_corpus_index->{$word}}, $sent_id;
 	}
     }
-
     print STDERR "\n\tSize of the first selected term list: " . scalar(keys %$ref_corpus_index) . "\n\n";
-#    &print_corpus_index($ref_corpus_index);
 }
 
 sub print_corpus_index {
@@ -159,7 +184,7 @@ sub print_corpus_index {
     }
 }
 
-sub term_Selection {
+sub _term_Selection2 {
     my ($ref_corpus_index, $ref_termlist, $ref_tabh_idtrm_select) = @_;
     my $counter;
     my $term;
@@ -172,29 +197,22 @@ sub term_Selection {
     warn "Selecting the terms potentialy appearing in the corpus\n";
 
     my %tabh_numtrm_select;
-    
+  
     for($counter  = 0;$counter < scalar @$ref_termlist;$counter++) {
 	$term = lc $ref_termlist->[$counter]->[0];
-#  	print STDERR "==>$term\n";
-#          warn "Scanning term : $term\n";
-	@tab_termlex = split /[ -]+/, $term;
+	@tab_termlex = split /[ \-]+/, $term;
 	$word_found = 0;
-#         warn "Split term : \n";
-#         foreach $word (@tab_termlex) {
-# 	    warn "\t$word\n";
-# 	}
 	$i=0; 
 	do {
 	    $word = $tab_termlex[$i];
-# 	    warn "\t$word\n";
-	    if (($word ne "") && ((length($word) > 3) || (scalar(@tab_termlex)==1)) && (exists $ref_corpus_index->{$word})) {
+	    if (($word ne "") && ((length($word) > 2) || (scalar(@tab_termlex)==1)) && 
+		((exists $ref_corpus_index->{$word}) || (exists $ref_corpus_index->{$word . "s"}))) {
 		$word_found = 1;
 		if (!exists $ref_tabh_idtrm_select->{$counter}) {
 		    my %tabhtmp2;
 		    $ref_tabh_idtrm_select->{$counter} = \%tabhtmp2;
 		}
 		foreach $sent_id (@{$ref_corpus_index->{$word}}) {
-# 		    print STDERR "$word => $sent_id\n";
 		    ${$ref_tabh_idtrm_select->{$counter}}{$sent_id} = 1;
 		}
 	    }
@@ -203,15 +221,55 @@ sub term_Selection {
     }
 
     warn "\nEnd of selecting the terms potentialy appearing in the corpus\n";
-
-#     print STDERR "\n\tSize of the selected term list: " . scalar(keys %$ref_tabh_idtrm_select) . "\n\n";
-#     foreach my $counter (keys %$ref_tabh_idtrm_select) {
-#         my $term_regex = $ref_termlist->[$counter];
-# 	print STDERR $term_regex . "\n";
-#     }
-
 }
 
+sub term_Selection {
+    my ($ref_corpus_index, $ref_termlist, $ref_tabh_idtrm_select) = @_;
+    my $counter;
+    my $term;
+    my @tab_termlex;
+    my $i;
+    my $word;
+    my $sent_id;
+    my $word_found = 0;
+
+    my @recordedWords;
+
+    warn "Selecting the terms potentialy appearing in the corpus\n";
+
+    my %tabh_numtrm_select;
+    
+    for($counter  = 0;$counter < scalar @$ref_termlist;$counter++) {
+	$term = lc $ref_termlist->[$counter]->[0];
+	@tab_termlex = split /[ \-:]+/, $term;
+	$word_found = 0;
+	$i=0; 
+	@recordedWords = ();
+	$word = $tab_termlex[$i];
+	while(($i < scalar(@tab_termlex)) && (($word eq "") || 
+					      ((exists $ref_corpus_index->{$word}) # || 
+					      ))) {
+	    if ($word ne "") {
+		push @recordedWords, $word;
+	    }
+	    $i++;
+	}
+	if ($i == scalar(@tab_termlex)) {
+	    foreach $word (@recordedWords) {
+		if (!exists $ref_tabh_idtrm_select->{$counter}) {
+		    my %tabhtmp2;
+		    $ref_tabh_idtrm_select->{$counter} = \%tabhtmp2;
+		}
+		foreach $sent_id (@{$ref_corpus_index->{$word}}) {
+		    ${$ref_tabh_idtrm_select->{$counter}}{$sent_id} = 1;
+		}
+	    }
+	}
+
+    }
+
+    warn "\nEnd of selecting the terms potentialy appearing in the corpus\n";
+}
 
 sub term_tagging_offset {
     my ($ref_termlist, $ref_regex_termlist, $ref_tabh_idtrm_select, $ref_tabh_corpus, $offset_tagged_corpus_name) = @_;
@@ -222,7 +280,7 @@ sub term_tagging_offset {
 
     warn "Term tagging\n";
 
-    open TAGGEDCORPUS, ">$offset_tagged_corpus_name" or die "$0: $offset_tagged_corpus_name: No such file\n";
+    open TAGGEDCORPUS, ">>$offset_tagged_corpus_name" or die "$0: $offset_tagged_corpus_name: No such file\n";
 
     binmode(TAGGEDCORPUS, ":utf8");
 
@@ -232,13 +290,13 @@ sub term_tagging_offset {
 	    $line = $ref_tabh_corpus->{$sent_id};
 	    print STDERR ".";
 	    
-	    if ($line =~ / ($term_regex)[,.?!:;\/ ]/i) {
+	    if ($line =~ /[,.?!:;\/ \n\-\/\*'\#\{\}\(\)\[\]\+]($term_regex)[,.?!:;\/ \n\-\/\*'\#\(\)\[\]\{\}\+]/i) {
 		printMatchingTerm(\*TAGGEDCORPUS, $ref_termlist->[$counter], $sent_id);
 	    }
-	    if ($line =~ /^($term_regex)[,.?!:;\/ ]/i) {
+	    if ($line =~ /^($term_regex)[,.?!:;\/ \n\-\/\*'\#\(\)\[\]\{\}\+]/i) {
 		printMatchingTerm(\*TAGGEDCORPUS, $ref_termlist->[$counter], $sent_id);
 	    }
-	    if ($line =~ / ($term_regex)$/i) {
+	    if ($line =~ /[,.?!:;\/ \n\-\/\*'\#\(\)\[\]\{\}\+]($term_regex)$/i) {
 		printMatchingTerm(\*TAGGEDCORPUS, $ref_termlist->[$counter], $sent_id);
 	    }
 	}
@@ -249,19 +307,13 @@ close TAGGEDCORPUS;
 
 #########################################################################################################
     warn "\nEnd of term tagging\n";
-
 }
 
 sub printMatchingTerm() {
-
     my ($descriptor, $ref_matching_term, $sent_id) = @_;
 
     print $descriptor "$sent_id\t";
     print $descriptor join("\t", @$ref_matching_term);
-#     print $descriptor $ref_matching_term->[0];
-#     if (defined ($ref_matching_term->[1])) {
-# 	print $descriptor "\t" . $ref_matching_term->[1];
-#     }
     print $descriptor "\n";
 
 }
@@ -276,29 +328,22 @@ sub term_tagging_offset_tab {
     my $i;
     my $size_termselect = scalar(keys %$ref_tabh_idtrm_select);
 
-#     warn "Term tagging\n";
-
-    
     $i = 0;
     
     foreach $counter (keys %$ref_tabh_idtrm_select) {
-	printf STDERR "Term tagging... %0.1f%%\r", ($i/$size_termselect)*100 ;
+  	printf STDERR "Term tagging... %0.1f%%\r", ($i/$size_termselect)*100 ;
 	$term_regex = $ref_regex_termlist->[$counter];
+
 	foreach $sent_id (keys %{$ref_tabh_idtrm_select->{$counter}}){
 	    $line = $ref_tabh_corpus->{$sent_id};
-#	    print STDERR ".";
-
-# 	    print STDERR "$term_regex\n";
-# 	    print STDERR "$line\n";
-	    if ($line =~ / ($term_regex)[,.?!:;\/ ]/i) {
-# 		print STDERR "OK\n";
-		printMatchingTerm_tab($ref_termlist->[$counter], $sent_id, $ref_tab_results);
+	    if ($line =~ /[,.?!:;\/ \n\-\/\*'\#\{\}\(\)\[\]\+](?<term>$term_regex)[,.?!:;\/ \n\-\/\*'\#\(\)\[\]\{\}\+]/is) {
+ 		printMatchingTerm_tab($ref_termlist->[$counter], $+{term},  $sent_id, $ref_tab_results);
 	    }
-	    if ($line =~ /^($term_regex)[,.?!:;\/ ]/i) {
-		printMatchingTerm_tab($ref_termlist->[$counter], $sent_id, $ref_tab_results);
+ 	    if ($line =~ /^(?<term>$term_regex)[,.?!:;\/ \n\-\/\*'\#\(\)\[\]\{\}\+]/is) {
+		printMatchingTerm_tab($ref_termlist->[$counter], $+{term}, $sent_id, $ref_tab_results);
 	    }
-	    if ($line =~ / ($term_regex)$/i) {
-		printMatchingTerm_tab($ref_termlist->[$counter], $sent_id, $ref_tab_results);
+	    if ($line =~ /[,.?!:;\/ \n\-\/\*'\#\(\)\[\]\{\}\+](?<term>$term_regex)$/is) {
+		printMatchingTerm_tab($ref_termlist->[$counter], $+{term}, $sent_id, $ref_tab_results);
 	    }
 	}
 	$i++;
@@ -307,44 +352,32 @@ sub term_tagging_offset_tab {
 
 #########################################################################################################
     warn "\nEnd of term tagging\n";
-
 }
 
 sub printMatchingTerm_tab() {
-
-    my ($ref_matching_term, $sent_id, $ref_tab_results) = @_;
+    my ($ref_matching_term, $term, $sent_id, $ref_tab_results) = @_;
 
     my $tmp_line = "";
     my $tmp_key;
 
-
     if (ref($ref_tab_results) eq "ARRAY") {
 	$tmp_line .= "$sent_id\t";
  	$tmp_line .= join ("\t", @$ref_matching_term);
-# 	$tmp_line .= $ref_matching_term->[0];
-# 	if (defined ($ref_matching_term->[1])) {
-# 	    $tmp_line .= "\t" . $ref_matching_term->[1];
-# 	}
 	push @$ref_tab_results, $tmp_line;
     } else {
 	if (ref($ref_tab_results) eq "HASH") {
 	    my @tab_tmp;
+ 	    $term =~ s/\\([\-\+\(\)\{\}])/$1/og;
 	    $tmp_key .= $sent_id . "_";
-	    $tmp_key .= $ref_matching_term->[0];
+	    $tmp_key .= $term;
+
 	    push @tab_tmp, $sent_id;
 	    push @tab_tmp, @$ref_matching_term;
-# 	    if (defined ($ref_matching_term->[1])) {
-# 		push @tab_tmp, $ref_matching_term->[1];
-# 	    }
 
-#  	print STDERR "\n$tmp_key\n\n";
 	    $ref_tab_results->{$tmp_key} = \@tab_tmp;
 	}
     }
-
 }
-
-
 
 1;
 
@@ -352,24 +385,33 @@ __END__
 
 =head1 NAME
 
-Alvis::TermTagger - Perl extension for tagging terms in a corpus
+Alvis::TermTagger - Perl extension for tagging terms in a text
 
 =head1 SYNOPSIS
 
 use Alvis::TermTagger;
 
-Alvis::TermTagger::termtagging($termlist, $outputfile);
+Alvis::TermTagger::termtagging($text, $termlist, $outputfile);
+
+or 
+
+Alvis::TermTagger::termtagging($text, $termlist, $outputfile, $lemmatised_text);
+
+
 
 =head1 DESCRIPTION
 
-This module is used to tag a corpus with terms. Corpus (given on the
-STDIN) is a file with one sentence per line. Term list (C<$termlist>)
-is a file containing one term per line. For each term, additionnal
-information (as canonical form or semantic tag) can be given after the
-first column. This information can be separated by either a column,
-either by a vertical bar. Each line of the output file
-(C<$outputfile>) contains the sentence number, the term, additional
-information, all separated by a tabulation character.
+This module is used to tag a text with terms (either with inflected or
+lemmatised form of their words). The text or the text corpus
+(C<$text>) is a file with one sentence per line. Term list
+(C<$termlist>) is a file containing one term per line. For each term,
+additionnal information (as canonical form, a semantic tag and the
+lemmatised word of the term) can be given after the first column. This
+information can be separated by either a column, either by a vertical
+bar. Each line of the output file (C<$outputfile>) contains the
+sentence number, the term, additional information, all separated by a
+tabulation character. The lemmatised text (C<$lemmatised_text>) is
+build as the concatenation of the lemma of the word of the corpus;
 
 This module is mainly used in the Alvis NLP Platform.
 
@@ -379,14 +421,16 @@ This module is mainly used in the Alvis NLP Platform.
 
 =head2 termtagging()
 
-    termtagging($term_list_filename, $output_filename);
+    termtagging($corpus_filename, $term_list_filename, $output_filename, $lemmatised_corpus_filename);
 
 This is the main method of module. It loads the term list
-(C<$term_list_filename>) and tags the corpus (C<$corpus_filename>). It
-produces the list of matching terms and the sentence offset (and
-additional information given in the input file) where the terms can be
-found. The file C<$output_filename> contains this output.
-
+(C<$term_list_filename>) and tags the text corpus
+(C<$corpus_filename>). It produces the list of matching terms and the
+sentence offset (and additional information given in the input file)
+where the terms can be found. The file C<$output_filename> contains
+this output.  To look up the lemmatised term (as a concatenation of
+lemmatised word), the lemmatised corpus C<$lemmatised_corpus_filename>
+has to be specified as fourth argument of the method.
 
 =head2 load_TermList()
 
@@ -400,11 +444,12 @@ its canonical form).
 
 =head2 get_Regex_TermList()
 
-    get_Regex_TermList(\@term_list, \@regex_term_list);
+    get_Regex_TermList(\@term_list, \@regex_term_list, \@ref_regex_lemmaWordtermlist);
 
 This method generates the regular expression from the term list
 (C<\@term_list>). stored in the specific array
-(C<\@regex_term_list>)
+(C<\@regex_term_list>). C<\@ref_regex_lemmaWordtermlist> records the
+regular expression for the term lemma.
 
 
 =head2 load_Corpus()
@@ -454,11 +499,11 @@ offset, and additional information in the file C<$output_filename>.
 
 =head2 term_tagging_offset_tab()
 
-    term_tagging_offset(\@term_list, \@regex_term_list, \%idtrm_select, \%corpus, \@tab_results);
+    term_tagging_offset_tab(\@term_list, \@regex_term_list, \%idtrm_select, \%corpus, \@tab_results);
 
 or 
 
-    term_tagging_offset(\@term_list, \@regex_term_list, \%idtrm_select, \%corpus, \%tabh_results);
+    term_tagging_offset_tab(\@term_list, \@regex_term_list, \%idtrm_select, \%corpus, \%tabh_results);
 
 This method tags the corpus C<\%corpus> with the terms (issued from
 the term list C<\@term_list>, C<\@regex_term_list> is the term list
@@ -498,7 +543,7 @@ Alvis web site: http://www.alvis.info
 
 =head1 AUTHORS
 
-Thierry Hamon <thierry.hamon@lipn.univ-paris13.fr>
+Thierry Hamon <thierry.hamon@univ-paris13.fr>
 
 =head1 LICENSE
 

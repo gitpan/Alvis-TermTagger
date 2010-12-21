@@ -10,7 +10,9 @@ my $build = Module::Build->new
 		  Pod::Usage => 0,
   		  Test::More => 0.62
 		  },
-     installdirs => 'core',
+    build_requires => {
+        "Module::Build"     => 0.28,
+    },
      );
 
 $build->create_build_script;
