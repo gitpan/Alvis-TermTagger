@@ -1,6 +1,6 @@
 package Alvis::TermTagger;
 
-our $VERSION = '0.7';
+our $VERSION = '0.8';
 
 #######################################################################
 #
@@ -25,9 +25,10 @@ use warnings;
 
 sub termtagging {
 
-    my ($corpus_filename, $term_list_filename, $output_filename, $lemmatised_corpus_filename) = @_;
+    my ($corpus_filename, $term_list_filename, $output_filename, $lemmatised_corpus_filename, $caseSensitive) = @_;
 
     my @term_list;
+    my %term_listIdx;
     my @regex_term_list;
     my @regex_lemmawordterm_list;
     my %corpus;
@@ -39,31 +40,35 @@ sub termtagging {
     my %idtrm_select;
     my %idlemtrm_select;
 
-    &load_TermList($term_list_filename,\@term_list);
+    if (!defined $caseSensitive) {
+	$caseSensitive = -1;
+    }
+
+    &load_TermList($term_list_filename,\@term_list, \%term_listIdx);
     &get_Regex_TermList(\@term_list, \@regex_term_list, \@regex_lemmawordterm_list);
 
-    &load_Corpus($corpus_filename,\%corpus, \%lc_corpus);
+    &load_Corpus($corpus_filename, \%corpus, \%lc_corpus);
     if (defined $lemmatised_corpus_filename) {
-	&load_Corpus($lemmatised_corpus_filename,\%lemmatised_corpus, \%lc_lemmatised_corpus);
+	&load_Corpus($lemmatised_corpus_filename, \%lemmatised_corpus, \%lc_lemmatised_corpus);
     }
-    &corpus_Indexing(\%lc_corpus, \%corpus_index);
+    &corpus_Indexing(\%lc_corpus, \%corpus, \%corpus_index, $caseSensitive);
     if (defined $lemmatised_corpus_filename) {
-	&corpus_Indexing(\%lc_lemmatised_corpus, \%lemmatised_corpus_index);
+	&corpus_Indexing(\%lc_lemmatised_corpus, \%lemmatised_corpus, \%lemmatised_corpus_index, $caseSensitive);
     }
-    &term_Selection(\%corpus_index, \@term_list, \%idtrm_select);
+    &term_Selection(\%corpus_index, \@term_list, \%idtrm_select, $caseSensitive);
     if (defined $lemmatised_corpus_filename) {
-	&term_Selection(\%lemmatised_corpus_index, \@term_list, \%idlemtrm_select);
+	&term_Selection(\%lemmatised_corpus_index, \@term_list, \%idlemtrm_select, $caseSensitive);
     }
-    &term_tagging_offset(\@term_list, \@regex_term_list, \%idtrm_select, \%corpus, $output_filename);
+    &term_tagging_offset(\@term_list, \@regex_term_list, \%idtrm_select, \%corpus, $output_filename, $caseSensitive);
     if (defined $lemmatised_corpus_filename) {
-	&term_tagging_offset(\@term_list, \@regex_lemmawordterm_list, \%idlemtrm_select, \%lemmatised_corpus, $output_filename);
+	&term_tagging_offset(\@term_list, \@regex_lemmawordterm_list, \%idlemtrm_select, \%lemmatised_corpus, $output_filename, $caseSensitive);
     }
     return(0);
 }
 
 
 sub load_TermList {
-    my ($termlist_name, $ref_termlist) = @_;
+    my ($termlist_name, $ref_termlist, $ref_termlistIdx) = @_;
 
     my $line;
     my $line1;
@@ -91,7 +96,13 @@ sub load_TermList {
 		 $tab[0] =~ s/ +/ /go;
 		 $tab[0] =~ s/ $//go;
 		 $tab[0] =~ s/^ //go;
-		 push @$ref_termlist, \@tab;
+#		 $tab[0] =~ s/\\:/:/go;
+		 if (!exists $ref_termlistIdx->{$tab[0]}) {
+		     push @$ref_termlist, \@tab;
+		     $ref_termlistIdx->{$tab[0]} = scalar(@$ref_termlist) -1;
+		 } else {
+		     $ref_termlist->[$ref_termlistIdx->{$tab[0]}]->[2] .= ";" . $tab[2];
+		 }
 	     }
  	 }
     }
@@ -109,12 +120,17 @@ sub get_Regex_TermList {
     for($term_counter  = 0;$term_counter < scalar @$ref_termlist;$term_counter++) {
 	$ref_regex_termlist->[$term_counter] = $ref_termlist->[$term_counter]->[0];
 	if (defined $ref_regex_lemmaWordtermlist) {
-	    $ref_regex_lemmaWordtermlist->[$term_counter] = $ref_termlist->[$term_counter]->[3];
+	    if (defined $ref_termlist->[$term_counter]->[3]) {
+		$ref_regex_lemmaWordtermlist->[$term_counter] = $ref_termlist->[$term_counter]->[3];
+	    } else {
+		$ref_regex_lemmaWordtermlist->[$term_counter] = $ref_termlist->[$term_counter]->[0];
+	    }
 	}
- 	$ref_regex_termlist->[$term_counter] =~ s/([()\',\[\]\?\!:;\/.\+\-\*\#\{\}])/\\$1/og;
+#	warn $ref_regex_lemmaWordtermlist->[$term_counter] . "\n";
+ 	$ref_regex_termlist->[$term_counter] =~ s/([()\',\[\]\?\!:;\/.\+\-\*\#\{\}\\])/\\$1/og;
 	$ref_regex_termlist->[$term_counter] =~ s/ /[\- \n]/og;
 	if (defined $ref_regex_lemmaWordtermlist) {
-	    $ref_regex_lemmaWordtermlist->[$term_counter] =~ s/([()\',\[\]\?\!:;\/.\+\-\*\#\{\}])/\\$1/og;
+	    $ref_regex_lemmaWordtermlist->[$term_counter] =~ s/([()\',\[\]\?\!:;\/.\+\-\*\#\{\}\\])/\\$1/og;
 	    $ref_regex_lemmaWordtermlist->[$term_counter] =~ s/ /[\- \n]/og;
 	}
     }
@@ -149,17 +165,26 @@ sub load_Corpus {
 
 
 sub corpus_Indexing {
-    my ($ref_corpus_lc, $ref_corpus_index) = @_;
+    my ($ref_corpus_lc, $ref_corpus, $ref_corpus_index, $caseSensitive) = @_;
 
     my $word;
     my @tab_words;
+    my @tab_words_lc;
     my $sent_id;
+    my $i;
 
     warn "Indexing the corpus\n";
 
     foreach $sent_id (keys %$ref_corpus_lc) { # \-\.,\n;\/
-	@tab_words = split /[ ()\',\[\]\?\!:;\/\.\+\-\*\#\{\}\n]/, $ref_corpus_lc->{$sent_id};
-	foreach $word (@tab_words) {
+	@tab_words = split /[ ()\',\[\]\?\!:;\/\.\+\-\*\#\{\}\n]/, $ref_corpus->{$sent_id};
+	@tab_words_lc = split /[ ()\',\[\]\?\!:;\/\.\+\-\*\#\{\}\n]/, $ref_corpus_lc->{$sent_id};
+	for($i=0;$i < scalar(@tab_words_lc);$i++) {
+#	foreach $word_lc (@tab_words_lc) {
+	    if ((defined $caseSensitive) && (($caseSensitive == 0) || (length($tab_words_lc[$i]) <= $caseSensitive))) {
+		$word = $tab_words[$i];
+	    } else {
+		$word = $tab_words_lc[$i];
+	    }
 	    if ($word ne "") {
 		if (!exists $ref_corpus_index->{$word}) {
 		    my @tabtmp;
@@ -200,13 +225,14 @@ sub _term_Selection2 {
   
     for($counter  = 0;$counter < scalar @$ref_termlist;$counter++) {
 	$term = lc $ref_termlist->[$counter]->[0];
+        # XXX - ABREVIATION - XXX
 	@tab_termlex = split /[ \-]+/, $term;
 	$word_found = 0;
 	$i=0; 
 	do {
 	    $word = $tab_termlex[$i];
 	    if (($word ne "") && ((length($word) > 2) || (scalar(@tab_termlex)==1)) && 
-		((exists $ref_corpus_index->{$word}) || (exists $ref_corpus_index->{$word . "s"}))) {
+		((exists $ref_corpus_index->{$word}))) { #  || (exists $ref_corpus_index->{$word . "s"})
 		$word_found = 1;
 		if (!exists $ref_tabh_idtrm_select->{$counter}) {
 		    my %tabhtmp2;
@@ -224,10 +250,12 @@ sub _term_Selection2 {
 }
 
 sub term_Selection {
-    my ($ref_corpus_index, $ref_termlist, $ref_tabh_idtrm_select) = @_;
+    my ($ref_corpus_index, $ref_termlist, $ref_tabh_idtrm_select, $caseSensitive) = @_;
     my $counter;
     my $term;
     my @tab_termlex;
+    my $termCap;
+    my @tab_termlexCap;
     my $i;
     my $word;
     my $sent_id;
@@ -239,20 +267,43 @@ sub term_Selection {
 
     my %tabh_numtrm_select;
     
+    # warn "caseSensitive: $caseSensitive\n";
     for($counter  = 0;$counter < scalar @$ref_termlist;$counter++) {
-	$term = lc $ref_termlist->[$counter]->[0];
-	@tab_termlex = split /[ \-:]+/, $term;
+	if ((defined $caseSensitive) && (($caseSensitive == 0) || (length($ref_termlist->[$counter]->[0]) <= $caseSensitive))) {
+	    $term = $ref_termlist->[$counter]->[0];
+	    $termCap = $ref_termlist->[$counter]->[0];
+	    # warn "passe\n";
+	} else {
+	    $term = lc $ref_termlist->[$counter]->[0];
+	    $termCap = $ref_termlist->[$counter]->[0];
+	}
+	# warn "+++> $term ($termCap)\n";
+        # XXX - ABREVIATION - XXX
+	# @tab_termlex = split /[ \-:]+/, $term;
+	@tab_termlex = split /[ ()\',\[\]\?\!:;\/\.\+\-\*\#\{\}\n]+/, $term;
+	@tab_termlexCap = split /[ ()\',\[\]\?\!:;\/\.\+\-\*\#\{\}\n]+/, $termCap;
+	# @tab_termlex = split /[ \-:]+/, $term;
+	# @tab_termlexCap = split /[ \-:]+/, $termCap;
 	$word_found = 0;
 	$i=0; 
 	@recordedWords = ();
 	$word = $tab_termlex[$i];
-	while(($i < scalar(@tab_termlex)) && (($word eq "") || 
-					      ((exists $ref_corpus_index->{$word}) # || 
-					      ))) {
+	# warn join(':', @tab_termlex) . " -- " . join(':', @tab_termlexCap) . "\n";
+	# warn scalar(@tab_termlex) . " -- " . scalar(@tab_termlexCap) . " ($i)\n";
+	while(($i < scalar(@tab_termlex)) && ($i < scalar(@tab_termlexCap)) && 
+	      ((($word eq "") || (exists $ref_corpus_index->{$word})) ||
+	      ((($caseSensitive == 0) || (length($ref_termlist->[$counter]->[0]) > $caseSensitive)) &&
+	       (exists $ref_corpus_index->{$tab_termlexCap[$i]})))
+	    ) {
 	    if ($word ne "") {
+		# warn "---> $term\n";
 		push @recordedWords, $word;
+	    # } else {
+	    # 	warn "--------------------------> $term\n";
 	    }
 	    $i++;
+	    $word = $tab_termlex[$i];
+	    # warn "i: $i\n";
 	}
 	if ($i == scalar(@tab_termlex)) {
 	    foreach $word (@recordedWords) {
@@ -265,18 +316,23 @@ sub term_Selection {
 		}
 	    }
 	}
-
     }
+    warn "Size of the selected list: " . scalar (keys %$ref_tabh_idtrm_select) . "\n";
+    # foreach $counter (keys %$ref_tabh_idtrm_select) {
+    # 	warn $ref_termlist->[$counter]->[0] . "\n";
+    # }
 
     warn "\nEnd of selecting the terms potentialy appearing in the corpus\n";
 }
 
 sub term_tagging_offset {
-    my ($ref_termlist, $ref_regex_termlist, $ref_tabh_idtrm_select, $ref_tabh_corpus, $offset_tagged_corpus_name) = @_;
+    my ($ref_termlist, $ref_regex_termlist, $ref_tabh_idtrm_select, $ref_tabh_corpus, $offset_tagged_corpus_name, $caseSensitive) = @_;
     my $counter;
     my $term_regex;
     my $sent_id;
     my $line;
+
+    # XXX - ABREVIATION - XXX => regex
 
     warn "Term tagging\n";
 
@@ -290,13 +346,22 @@ sub term_tagging_offset {
 	    $line = $ref_tabh_corpus->{$sent_id};
 	    print STDERR ".";
 	    
-	    if ($line =~ /[,.?!:;\/ \n\-\/\*'\#\{\}\(\)\[\]\+]($term_regex)[,.?!:;\/ \n\-\/\*'\#\(\)\[\]\{\}\+]/i) {
+	    if ((((defined $caseSensitive) && (($caseSensitive == 0) || (length($ref_termlist->[$counter]->[0]) <= $caseSensitive))) &&
+		 ($line =~ /[,.?!:;\/ \n\-\/\*'\#\{\}\(\)\[\]\+]($term_regex)[,.?!:;\/ \n\-\/\*'\#\(\)\[\]\{\}\+]/)) || 
+		(((!defined $caseSensitive) || ($caseSensitive < 0) || (length($ref_termlist->[$counter]->[0]) > $caseSensitive)) && 
+		 ($line =~ /[,.?!:;\/ \n\-\/\*'\#\{\}\(\)\[\]\+]($term_regex)[,.?!:;\/ \n\-\/\*'\#\(\)\[\]\{\}\+]/i))) {
 		printMatchingTerm(\*TAGGEDCORPUS, $ref_termlist->[$counter], $sent_id);
 	    }
-	    if ($line =~ /^($term_regex)[,.?!:;\/ \n\-\/\*'\#\(\)\[\]\{\}\+]/i) {
+	    if ((((defined $caseSensitive) && (($caseSensitive == 0) || (length($ref_termlist->[$counter]->[0]) <= $caseSensitive))) &&
+		 ($line =~ /^($term_regex)[,.?!:;\/ \n\-\/\*'\#\(\)\[\]\{\}\+]/i)) || 
+		(((!defined $caseSensitive) || ($caseSensitive < 0) || (length($ref_termlist->[$counter]->[0]) > $caseSensitive)) && 
+		 ($line =~ /^($term_regex)[,.?!:;\/ \n\-\/\*'\#\(\)\[\]\{\}\+]/i))) {
 		printMatchingTerm(\*TAGGEDCORPUS, $ref_termlist->[$counter], $sent_id);
 	    }
-	    if ($line =~ /[,.?!:;\/ \n\-\/\*'\#\(\)\[\]\{\}\+]($term_regex)$/i) {
+	    if ((((defined $caseSensitive) && (($caseSensitive == 0) || (length($ref_termlist->[$counter]->[0]) <= $caseSensitive))) &&
+		 ($line =~ /[,.?!:;\/ \n\-\/\*'\#\(\)\[\]\{\}\+]($term_regex)$/)) ||
+		(((!defined $caseSensitive) || ($caseSensitive < 0) || (length($ref_termlist->[$counter]->[0]) > $caseSensitive)) && 
+		 ($line =~ /[,.?!:;\/ \n\-\/\*'\#\(\)\[\]\{\}\+]($term_regex)$/i))) {
 		printMatchingTerm(\*TAGGEDCORPUS, $ref_termlist->[$counter], $sent_id);
 	    }
 	}
@@ -320,7 +385,7 @@ sub printMatchingTerm() {
 
 
 sub term_tagging_offset_tab {
-    my ($ref_termlist, $ref_regex_termlist, $ref_tabh_idtrm_select, $ref_tabh_corpus, $ref_tab_results) = @_;
+    my ($ref_termlist, $ref_regex_termlist, $ref_tabh_idtrm_select, $ref_tabh_corpus, $ref_tab_results, $caseSensitive) = @_;
     my $counter;
     my $term_regex;
     my $sent_id;
@@ -329,20 +394,36 @@ sub term_tagging_offset_tab {
     my $size_termselect = scalar(keys %$ref_tabh_idtrm_select);
 
     $i = 0;
+
+    # XXX - ABREVIATION - XXX => regex
+#    warn "====> $caseSensitive\n";
     
     foreach $counter (keys %$ref_tabh_idtrm_select) {
   	printf STDERR "Term tagging... %0.1f%%\r", ($i/$size_termselect)*100 ;
 	$term_regex = $ref_regex_termlist->[$counter];
+	# warn "counter: $counter ($term_regex)\n";
 
 	foreach $sent_id (keys %{$ref_tabh_idtrm_select->{$counter}}){
 	    $line = $ref_tabh_corpus->{$sent_id};
-	    if ($line =~ /[,.?!:;\/ \n\-\/\*'\#\{\}\(\)\[\]\+](?<term>$term_regex)[,.?!:;\/ \n\-\/\*'\#\(\)\[\]\{\}\+]/is) {
+
+	    # warn "$line\n$term_regex\n";
+
+	    if ((((defined $caseSensitive) && (($caseSensitive == 0) || (length($ref_termlist->[$counter]->[0]) <= $caseSensitive))) &&
+		 ($line =~ /[,.?!:;\/ \n\-\/\*'\#\{\}\(\)\[\]\+](?<term>$term_regex)[,.?!:;\/ \n\-\/\*'\#\(\)\[\]\{\}\+]/s)) ||
+		(((!defined $caseSensitive) || ($caseSensitive < 0) || (length($ref_termlist->[$counter]->[0]) > $caseSensitive)) && 
+		 ($line =~ /[,.?!:;\/ \n\-\/\*'\#\{\}\(\)\[\]\+](?<term>$term_regex)[,.?!:;\/ \n\-\/\*'\#\(\)\[\]\{\}\+]/is))) {
  		printMatchingTerm_tab($ref_termlist->[$counter], $+{term},  $sent_id, $ref_tab_results);
 	    }
- 	    if ($line =~ /^(?<term>$term_regex)[,.?!:;\/ \n\-\/\*'\#\(\)\[\]\{\}\+]/is) {
+ 	    if ((((defined $caseSensitive) && (($caseSensitive == 0) || (length($ref_termlist->[$counter]->[0]) <= $caseSensitive))) &&
+		 ($line =~ /^(?<term>$term_regex)[,.?!:;\/ \n\-\/\*'\#\(\)\[\]\{\}\+]/s)) ||
+		(((!defined $caseSensitive) || ($caseSensitive < 0) || (length($ref_termlist->[$counter]->[0]) > $caseSensitive)) && 
+		 ($line =~ /^(?<term>$term_regex)[,.?!:;\/ \n\-\/\*'\#\(\)\[\]\{\}\+]/is))) {
 		printMatchingTerm_tab($ref_termlist->[$counter], $+{term}, $sent_id, $ref_tab_results);
 	    }
-	    if ($line =~ /[,.?!:;\/ \n\-\/\*'\#\(\)\[\]\{\}\+](?<term>$term_regex)$/is) {
+	    if ((((defined $caseSensitive) && (($caseSensitive == 0) || (length($ref_termlist->[$counter]->[0]) <= $caseSensitive))) &&
+		 ($line =~ /[,.?!:;\/ \n\-\/\*'\#\(\)\[\]\{\}\+](?<term>$term_regex)$/s)) ||
+		(((!defined $caseSensitive) || ($caseSensitive < 0) || (length($ref_termlist->[$counter]->[0]) > $caseSensitive)) && 
+		 ($line =~ /[,.?!:;\/ \n\-\/\*'\#\(\)\[\]\{\}\+](?<term>$term_regex)$/is))) {
 		printMatchingTerm_tab($ref_termlist->[$counter], $+{term}, $sent_id, $ref_tab_results);
 	    }
 	}
@@ -360,6 +441,8 @@ sub printMatchingTerm_tab() {
     my $tmp_line = "";
     my $tmp_key;
 
+    # warn "\nOK\n";
+
     if (ref($ref_tab_results) eq "ARRAY") {
 	$tmp_line .= "$sent_id\t";
  	$tmp_line .= join ("\t", @$ref_matching_term);
@@ -374,7 +457,13 @@ sub printMatchingTerm_tab() {
 	    push @tab_tmp, $sent_id;
 	    push @tab_tmp, @$ref_matching_term;
 
+	    # if (!exists $ref_tab_results->{$tmp_key}) {
 	    $ref_tab_results->{$tmp_key} = \@tab_tmp;
+	    # } else {
+	    # 	foreach $refmatch (@{$ref_tab_results->{$tmp_key}}) {
+		    
+	    # 	}
+	    # }
 	}
     }
 }
@@ -407,7 +496,7 @@ lemmatised form of their words). The text or the text corpus
 (C<$termlist>) is a file containing one term per line. For each term,
 additionnal information (as canonical form, a semantic tag and the
 lemmatised word of the term) can be given after the first column. This
-information can be separated by either a column, either by a vertical
+information can be separated by either a colon, either by a vertical
 bar. Each line of the output file (C<$outputfile>) contains the
 sentence number, the term, additional information, all separated by a
 tabulation character. The lemmatised text (C<$lemmatised_text>) is
@@ -421,7 +510,7 @@ This module is mainly used in the Alvis NLP Platform.
 
 =head2 termtagging()
 
-    termtagging($corpus_filename, $term_list_filename, $output_filename, $lemmatised_corpus_filename);
+    termtagging($corpus_filename, $term_list_filename, $output_filename, $lemmatised_corpus_filename, $caseSensitive);
 
 This is the main method of module. It loads the term list
 (C<$term_list_filename>) and tags the text corpus
@@ -431,6 +520,15 @@ where the terms can be found. The file C<$output_filename> contains
 this output.  To look up the lemmatised term (as a concatenation of
 lemmatised word), the lemmatised corpus C<$lemmatised_corpus_filename>
 has to be specified as fourth argument of the method.
+
+The parameter C<$caseSensitive> indicates if the term matching is case
+sensitive (value greater or equal to 0) or insensitive ((value
+strictly lesser than 0). If the value of C<$caseSensitive> is equal to
+0, the case sensitive match is carried out for any terms. If the value of
+C<$caseSensitive> is strictly greater than 0, the case sensitive match
+is carried out only for the terms with a number of characters lesser
+or equal to C<$caseSensitive>.
+
 
 =head2 load_TermList()
 
@@ -464,10 +562,12 @@ specific hashtable, C<\%lc_corpus>)
 
 =head2 corpus_Indexing()
 
-    corpus_Indexing(\%lc_corpus, \%corpus_index);
+    corpus_Indexing(\%lc_corpus, \%corpus, \%corpus_index, $caseSensitive);
 
 This method indexes the lower case version of the corpus
-(C<\%lc_corpus>) according the words C<\%corpus_index> (the index is a
+(C<\%lc_corpus>) or the normal case version of the corpus according to
+the value of the case sensitive parameter (C<$caseSensitive>). The
+words are stored in the index C<\%corpus_index> (the index is a
 hashtable given by reference).
 
 =head2 print_corpus_index()
@@ -478,17 +578,25 @@ This method prints on STDERR the corpus index C<\%corpus_index>.
 
 =head2 term_Selection()
 
-    term_Selection(\%corpus_index, \@term_list, \%idtrm_select);
+    term_Selection(\%corpus_index, \@term_list, \%idtrm_select, $caseSensitive);
 
 This method selects the terms from the term list (C<\@term_list>)
 potentially appearing in the corpus (that is the indexed corpus,
 C<\%corpus_index>). Results are recorded in the hash table
 C<\%idtrm_select>.
 
+The parameter C<$caseSensitive> indicates if the term matching is case
+sensitive (value greater or equal to 0) or insensitive ((value
+strictly lesser than 0). If the value of C<$caseSensitive> is equal to
+0, the case sensitive match is carried out for any terms. If the value of
+C<$caseSensitive> is strictly greater than 0, the case sensitive match
+is carried out only for the terms with a number of characters lesser
+or equal to C<$caseSensitive>.
+
 
 =head2 term_tagging_offset()
 
-    term_tagging_offset(\@term_list, \@regex_term_list, \%idtrm_select, \%corpus, $output_filename);
+    term_tagging_offset(\@term_list, \@regex_term_list, \%idtrm_select, \%corpus, $output_filename, $caseSensitive);
 
 This method tags the corpus C<\%corpus> with the terms (issued from
 the term list C<\@term_list>, C<\@regex_term_list> is the term list
@@ -496,14 +604,21 @@ with regular expression), and selected in a previous step
 (C<\%idtrm_select>). Resulting selected terms are recorded with their
 offset, and additional information in the file C<$output_filename>.
 
+The parameter C<$caseSensitive> indicates if the term matching is case
+sensitive (value greater or equal to 0) or insensitive ((value
+strictly lesser than 0). If the value of C<$caseSensitive> is equal to
+0, the case sensitive match is carried out for any terms. If the value of
+C<$caseSensitive> is strictly greater than 0, the case sensitive match
+is carried out only for the terms with a number of characters lesser
+or equal to C<$caseSensitive>.
 
 =head2 term_tagging_offset_tab()
 
-    term_tagging_offset_tab(\@term_list, \@regex_term_list, \%idtrm_select, \%corpus, \@tab_results);
+    term_tagging_offset_tab(\@term_list, \@regex_term_list, \%idtrm_select, \%corpus, \@tab_results, $caseSensitive);
 
 or 
 
-    term_tagging_offset_tab(\@term_list, \@regex_term_list, \%idtrm_select, \%corpus, \%tabh_results);
+    term_tagging_offset_tab(\@term_list, \@regex_term_list, \%idtrm_select, \%corpus, \%tabh_results, $caseSensitive);
 
 This method tags the corpus C<\%corpus> with the terms (issued from
 the term list C<\@term_list>, C<\@regex_term_list> is the term list
@@ -514,6 +629,14 @@ offset, and additional information in the array C<@tab_results>
 separated by tabulation) or in the hashtable C<%tabh_results> (keys
 form is "sentenceid_selectedterm", values are an array reference
 containing sentence id, selected terms and additional ifnormation).
+
+The parameter C<$caseSensitive> indicates if the term matching is case
+sensitive (value greater or equal to 0) or insensitive ((value
+strictly lesser than 0). If the value of C<$caseSensitive> is equal to
+0, the case sensitive match is carried out for any terms. If the value of
+C<$caseSensitive> is strictly greater than 0, the case sensitive match
+is carried out only for the terms with a number of characters lesser
+or equal to C<$caseSensitive>.
 
 =head2 printMatchingTerm
 

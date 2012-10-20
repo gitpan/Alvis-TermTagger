@@ -5,8 +5,9 @@ author:
 build_requires:
   Module::Build: 0.28
 configure_requires:
-  Module::Build: 0.36
-generated_by: 'Module::Build version 0.3607'
+  Module::Build: 0.38
+dynamic_config: 1
+generated_by: 'Module::Build version 0.38, CPAN::Meta::Converter version 2.110440'
 license: gpl
 meta-spec:
   url: http://module-build.sourceforge.net/META-spec-v1.4.html
@@ -15,12 +16,12 @@ name: Alvis-TermTagger
 provides:
   Alvis::TermTagger:
     file: lib/Alvis/TermTagger.pm
-    version: 0.7
+    version: 0.8
 requires:
   Getopt::Long: 0
   Pod::Usage: 0
   Test::More: 0.62
   perl: 5.005
 resources:
-  license: http://opensource.org/licenses/gpl-license.php
-version: 0.7
+  license: http://www.gnu.org/licenses/old-licenses/gpl-1.0.txt
+version: 0.8

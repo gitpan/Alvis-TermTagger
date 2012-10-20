@@ -1,5 +1,9 @@
 Revision history for Perl extension Alvis::TermTagger.
 
+0.8     - correction in the documentation
+        - add the possibility of a case sensitive matching, according
+          to (or not) the length of the term
+
 0.7     - tagging of the term with the lemmatised form of its words
 
 0.6     - Correction in Build.PL

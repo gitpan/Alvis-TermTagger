@@ -10,9 +10,10 @@ my $build = Module::Build->new
 		  Pod::Usage => 0,
   		  Test::More => 0.62
 		  },
-    build_requires => {
-        "Module::Build"     => 0.28,
-    },
+      build_requires => {
+         "Module::Build"     => 0.28,
+     },
+      configure_requires => { 'Module::Build' => 0.38 },
      );
 
 $build->create_build_script;

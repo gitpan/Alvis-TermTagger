@@ -9,8 +9,10 @@ bin/TermTagger.pl
 lib/Alvis/TermTagger.pm
 etc/termlist-test.lst
 etc/corpus-test.txt
+etc/corpus-test-lem.txt
 t/0-creation.t
 t/1-termtagging.t
+t/2-termtaggingCaseSensitive.t
 t/pod.t
 t/pod-coverage.t
 examples/corpus
@@ -25,3 +27,4 @@ examples/load_and_term-matching_hash
 examples/term+lem+semtaglist+wordlemma
 LICENSE
 META.yml
+META.json

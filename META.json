@@ -1,0 +1,49 @@
+{
+   "abstract" : "Perl extension for tagging terms in a text",
+   "author" : [
+      "Thierry Hamon <thierry.hamon@univ-paris13.fr>"
+   ],
+   "dynamic_config" : 1,
+   "generated_by" : "Module::Build version 0.38, CPAN::Meta::Converter version 2.110440",
+   "license" : [
+      "gpl_1"
+   ],
+   "meta-spec" : {
+      "url" : "http://search.cpan.org/perldoc?CPAN::Meta::Spec",
+      "version" : "2"
+   },
+   "name" : "Alvis-TermTagger",
+   "prereqs" : {
+      "build" : {
+         "requires" : {
+            "Module::Build" : "0.28"
+         }
+      },
+      "configure" : {
+         "requires" : {
+            "Module::Build" : "0.38"
+         }
+      },
+      "runtime" : {
+         "requires" : {
+            "Getopt::Long" : 0,
+            "Pod::Usage" : 0,
+            "Test::More" : "0.62",
+            "perl" : "5.005"
+         }
+      }
+   },
+   "provides" : {
+      "Alvis::TermTagger" : {
+         "file" : "lib/Alvis/TermTagger.pm",
+         "version" : "0.8"
+      }
+   },
+   "release_status" : "stable",
+   "resources" : {
+      "license" : [
+         "http://www.gnu.org/licenses/old-licenses/gpl-1.0.txt"
+      ]
+   },
+   "version" : "0.8"
+}
